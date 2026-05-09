@@ -355,7 +355,11 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         // Server error - show friendly error dialog
+<<<<<<< HEAD
         const errorMsg = result.error || "Failed to submit registration";
+=======
+        let errorMsg = result.error || "Failed to submit registration";
+>>>>>>> 5e907af (fix issues like auto submit and error handling and fixing the mobile not working ordering)
         let errorDetail = "";
 
         // Parse common server errors
