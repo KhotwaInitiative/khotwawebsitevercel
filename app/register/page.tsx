@@ -364,8 +364,12 @@ export default function RegisterPage() {
         let errorDetail = "";
 =======
         const errorMsg = result.error || "Failed to submit registration";
+<<<<<<< HEAD
         const errorDetail = "";
 >>>>>>> 524000f (Update page.tsx)
+=======
+        let errorDetail = "";
+>>>>>>> 2c2c503 (fix error)
 
         // Parse common server errors
         if (errorMsg.includes("email") || errorMsg.toLowerCase().includes("already exists")) {
