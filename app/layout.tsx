@@ -33,6 +33,7 @@ export default function RootLayout({
         className={`${cairo.variable} ${inter.variable} font-cairo bg-gray-50 text-gray-800 antialiased selection:bg-brand selection:text-white transition-colors duration-300`}
       >
         <ClientLayout>{children}</ClientLayout>
+        <Analytics />
       </body>
     </html>
   );
