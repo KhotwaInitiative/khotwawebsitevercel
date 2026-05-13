@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cairo, Inter } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
+import { Analytics } from "@vercel/analytics/next"
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
