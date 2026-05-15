@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     // Validate all companies are rated (8 companies expected)
     const expectedCompanies = [
       "Apple", "Microsoft", "Google", "Amazon", 
-      "Meta", "Tesla", "Samsung", "IBM"
+      "Meta", "Tesla", "IBM", "Intel"
     ];
     for (const company of expectedCompanies) {
       if (!companies_ratings[company] || companies_ratings[company] < 1 || companies_ratings[company] > 5) {
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     // Validate all jobs are rated (8 jobs expected)
     const expectedJobs = [
       "Software Engineer", "Product Manager", "Data Scientist", "UX Designer",
-      "DevOps Engineer", "QA Engineer", "Business Analyst", "Solutions Architect"
+      "DevOps Engineer", "Business Analyst", "QA Engineer", "System Architect"
     ];
     for (const job of expectedJobs) {
       if (!job_ratings[job] || job_ratings[job] < 1 || job_ratings[job] > 5) {

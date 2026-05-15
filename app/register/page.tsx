@@ -9,6 +9,7 @@ import Image from "next/image";
 import { Lock, CheckCircle, UploadCloud, Star, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { SAUDI_UNIVERSITIES, PROFESSIONAL_MAJORS } from "@/lib/university-and-majors";
+import { PROFESSIONAL_SKILLS, getAllSkillsGrouped } from "@/lib/skills";
 
 const TOTAL_STEPS = 4;
 
@@ -38,8 +39,7 @@ const FullSchema = z.object({
   graduation_year: z.string().min(1, "Graduation year is required"),
   linkedin: z.string().default(""),
   skills: z.array(z.string()).min(1, "Add at least one skill").max(7, "Maximum 7 skills"),
-  experience_projects: z.string().min(10, "Please describe your experience"),
-  free_space: z.string().default(""),
+  experience_projects: z.string().optional().or(z.literal("")),
   commitment_duration: z.string().min(1, "Commitment duration is required"),
   companies_ratings: z.record(z.number().min(1).max(5)).refine(
     (ratings) => Object.keys(ratings).length === COMPANIES_LIST.length && Object.values(ratings).every(v => v > 0),
@@ -68,6 +68,8 @@ export default function RegisterPage() {
   const [dragOver, setDragOver] = useState(false);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [skillInput, setSkillInput] = useState("");
+  const [skillsDropdownOpen, setSkillsDropdownOpen] = useState(false);
+  const [searchSkill, setSearchSkill] = useState("");
   const [companiesRatings, setCompaniesRatings] = useState<Record<string, number>>({});
   const [jobRatings, setJobRatings] = useState<Record<string, number>>({});
 
@@ -156,15 +158,38 @@ export default function RegisterPage() {
     if (value.length > 0) clearErrors("phone_number");
   };
 
-  const addSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && skillInput.trim()) {
+  const handleSubmitClick = async () => {
+    // Validate step 3 before showing confirmation
+    const isValid = await validateStep();
+    if (isValid) {
+      setShowConfirmation(true);
+    }
+  };
+
+  const addSkill = (skill: string) => {
+    const currentSkills = getValues("skills") || [];
+    const lowerSkill = skill.trim().toLowerCase();
+    
+    // Check if skill already exists (case-insensitive)
+    if (currentSkills.some(s => s.toLowerCase() === lowerSkill)) {
+      return; // Skill already added
+    }
+    
+    if (currentSkills.length < 7 && lowerSkill) {
+      const newSkills = [...currentSkills, lowerSkill];
+      setValue("skills", newSkills);
+      setSkillInput("");
+      setSearchSkill("");
+      setSkillsDropdownOpen(false);
+      clearErrors("skills");
+    }
+  };
+
+  const handleSkillInputKeypress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
       e.preventDefault();
-      const currentSkills = getValues("skills") || [];
-      if (currentSkills.length < 7) {
-        const newSkills = [...currentSkills, skillInput.trim()];
-        setValue("skills", newSkills);
-        setSkillInput("");
-        clearErrors("skills");
+      if (skillInput.trim()) {
+        addSkill(skillInput);
       }
     }
   };
@@ -254,8 +279,7 @@ export default function RegisterPage() {
       formData.append("graduation_year", data.graduation_year);
       formData.append("linkedin", data.linkedin || "");
       formData.append("skills", JSON.stringify(data.skills));
-      formData.append("experience_projects", data.experience_projects);
-      formData.append("free_space", data.free_space || "");
+      formData.append("experience_projects", data.experience_projects || "");
       formData.append("commitment_duration", data.commitment_duration);
       formData.append("companies_ratings", JSON.stringify(companiesRatings));
       formData.append("job_ratings", JSON.stringify(jobRatings));
@@ -283,6 +307,14 @@ export default function RegisterPage() {
       setShowError(true);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Close dropdown when clicking outside
+  const handleClickOutside = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest(".skills-dropdown-wrapper")) {
+      setSkillsDropdownOpen(false);
     }
   };
 
@@ -451,7 +483,7 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          <form onSubmit={handleFormSubmit}>
+          <form onSubmit={handleFormSubmit} onClick={handleClickOutside}>
             {/* Step 1 */}
             {currentStep === 0 && (
               <div className="step-card active">
@@ -691,21 +723,101 @@ export default function RegisterPage() {
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regSkillsInput")}
                     </label>
-                    <input
-                      type="text"
-                      value={skillInput}
-                      onChange={(e) => setSkillInput(e.target.value)}
-                      onKeyDown={addSkill}
-                      placeholder={t("regSkillsPlaceholder")}
-                      disabled={skills.length >= 7}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition disabled:opacity-60"
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
+                    
+                    {/* Skills Dropdown Section */}
+                    <div className="relative mb-4 skills-dropdown-wrapper">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={skillInput}
+                          onChange={(e) => {
+                            setSkillInput(e.target.value);
+                            setSearchSkill(e.target.value.toLowerCase());
+                            if (e.target.value) setSkillsDropdownOpen(true);
+                          }}
+                          onKeyDown={handleSkillInputKeypress}
+                          onFocus={() => setSkillsDropdownOpen(true)}
+                          placeholder={t("regSkillsPlaceholder")}
+                          disabled={skills.length >= 7}
+                          className="flex-1 px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition disabled:opacity-60"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (skillInput.trim()) {
+                              addSkill(skillInput);
+                            }
+                          }}
+                          disabled={skills.length >= 7 || !skillInput.trim()}
+                          className="px-6 py-3.5 bg-brand text-white font-semibold rounded-xl hover:bg-brand-dark transition disabled:opacity-50"
+                        >
+                          {lang === "ar" ? "إضافة" : "Add"}
+                        </button>
+                      </div>
+
+                      {/* Skills Dropdown Menu */}
+                      {skillsDropdownOpen && skills.length < 7 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg z-50 max-h-96 overflow-y-auto">
+                          {(() => {
+                            const skillsGrouped = getAllSkillsGrouped();
+                            const allSkillsLower = skills.map(s => s.toLowerCase());
+                            let hasResults = false;
+
+                            return (
+                              <>
+                                {Object.entries(skillsGrouped).map(([category, categorySkills]) => {
+                                  const filtered = categorySkills.filter(
+                                    (skill) =>
+                                      skill.en.toLowerCase().includes(searchSkill) &&
+                                      !allSkillsLower.includes(skill.en.toLowerCase())
+                                  );
+
+                                  if (filtered.length === 0) return null;
+                                  hasResults = true;
+
+                                  const categoryLabels: Record<string, string> = {
+                                    computer: lang === "ar" ? "تكنولوجيا المعلومات" : "Computer & IT",
+                                    business: lang === "ar" ? "الأعمال" : "Business",
+                                    general: lang === "ar" ? "عام" : "General",
+                                  };
+
+                                  return (
+                                    <div key={category}>
+                                      <div className="px-4 py-2 bg-gray-100 font-semibold text-sm text-gray-700 sticky top-0">
+                                        {categoryLabels[category as keyof typeof categoryLabels]}
+                                      </div>
+                                      {filtered.map((skill) => (
+                                        <button
+                                          key={skill.en}
+                                          type="button"
+                                          onClick={() => addSkill(skill.en)}
+                                          className="w-full text-left px-4 py-2 hover:bg-brand/10 transition flex justify-between items-center"
+                                        >
+                                          <span className="text-gray-800">{skill.en}</span>
+                                          <span className="text-xs text-gray-500">{skill.ar}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  );
+                                })}
+                                {!hasResults && (
+                                  <div className="px-4 py-3 text-center text-gray-500 text-sm">
+                                    {lang === "ar" ? "لا توجد نتائج" : "No results found"}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-gray-500 mb-2">
                       {skills.length}/7 {lang === "ar" ? "مهارات" : "skills"}
                     </p>
 
                     {skills.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="mb-3 flex flex-wrap gap-2">
                         {skills.map((skill, idx) => (
                           <span
                             key={idx}
@@ -739,18 +851,6 @@ export default function RegisterPage() {
                       }`}
                     />
                     {errors.experience_projects && <p className="text-red-600 text-sm mt-1">{errors.experience_projects.message}</p>}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-2">
-                      {t("regFreeSpace")}
-                    </label>
-                    <textarea
-                      placeholder={t("regFreeSpacePlaceholder")}
-                      {...register("free_space")}
-                      rows={3}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition resize-none"
-                    />
                   </div>
 
                   <div>
@@ -896,7 +996,8 @@ export default function RegisterPage() {
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleSubmitClick}
                   disabled={isSubmitting || !cvFile}
                   className="px-8 py-3 text-base font-semibold rounded-full bg-brand text-white hover:bg-brand-light transition shadow-md shadow-brand/25 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
