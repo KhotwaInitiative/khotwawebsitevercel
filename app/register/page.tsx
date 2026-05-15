@@ -1,349 +1,264 @@
 "use client";
 
-import { useState, useRef, FormEvent, ChangeEvent, DragEvent } from "react";
+import { useState, ChangeEvent, DragEvent } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import Link from "next/link";
 import Image from "next/image";
-import { Lock, CheckCircle, UploadCloud, GripVertical, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Lock, CheckCircle, UploadCloud, Star, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
+import { SAUDI_UNIVERSITIES, PROFESSIONAL_MAJORS } from "@/lib/university-and-majors";
 
 const TOTAL_STEPS = 4;
 
-// Predefined company and job title lists
 const COMPANIES_LIST = [
-  "Apple",
-  "Microsoft",
-  "Google",
-  "Amazon",
-  "Meta",
-  "Tesla",
-  "IBM",
-  "Intel",
+  "Apple", "Microsoft", "Google", "Amazon", "Meta", "Tesla", "IBM", "Intel",
 ];
 
 const JOB_TITLES_LIST = [
-  "Software Engineer",
-  "Product Manager",
-  "Data Scientist",
-  "UX Designer",
-  "DevOps Engineer",
-  "Business Analyst",
-  "QA Engineer",
-  "System Architect",
+  "Software Engineer", "Product Manager", "Data Scientist", "UX Designer",
+  "DevOps Engineer", "Business Analyst", "QA Engineer", "System Architect",
 ];
 
-interface OrderedItem {
-  id: string;
-  label: string;
-  order: number;
-}
+// Zod validation schemas
+const phoneRegex = /^\d{9,10}$/;
+
+const FullSchema = z.object({
+  full_name: z.string().min(2, "Full name is required"),
+  gender: z.enum(["male", "female"]),
+  email: z.string().email("Invalid email format"),
+  phone_country: z.string().default("966"),
+  phone_number: z.string().regex(phoneRegex, "Phone must be 9 digits"),
+  university: z.string().min(1, "University is required"),
+  university_other: z.string().default(""),
+  major: z.string().min(1, "Major is required"),
+  major_other: z.string().default(""),
+  uni_id: z.string().min(1, "University ID is required"),
+  graduation_year: z.string().min(1, "Graduation year is required"),
+  linkedin: z.string().default(""),
+  skills: z.array(z.string()).min(1, "Add at least one skill").max(7, "Maximum 7 skills"),
+  experience_projects: z.string().min(10, "Please describe your experience"),
+  free_space: z.string().default(""),
+  commitment_duration: z.string().min(1, "Commitment duration is required"),
+  companies_ratings: z.record(z.number().min(1).max(5)).refine(
+    (ratings) => Object.keys(ratings).length === COMPANIES_LIST.length && Object.values(ratings).every(v => v > 0),
+    "Please rate all companies"
+  ),
+  job_ratings: z.record(z.number().min(1).max(5)).refine(
+    (ratings) => Object.keys(ratings).length === JOB_TITLES_LIST.length && Object.values(ratings).every(v => v > 0),
+    "Please rate all jobs"
+  ),
+  cv_file: z.instanceof(File).optional(),
+});
+
+type FormData = z.infer<typeof FullSchema>;
 
 export default function RegisterPage() {
   const { lang, t, toggleLang } = useLanguage();
-
-  // --- State ---
   const isRegistrationOpen = true;
 
   const [currentStep, setCurrentStep] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [expandedDetails, setExpandedDetails] = useState(false);
   const [showError, setShowError] = useState(false);
-  const [errorType, setErrorType] = useState<"client" | "server">("client");
   const [errorTitle, setErrorTitle] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [errorDetails, setErrorDetails] = useState<string[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [skillInput, setSkillInput] = useState("");
+  const [companiesRatings, setCompaniesRatings] = useState<Record<string, number>>({});
+  const [jobRatings, setJobRatings] = useState<Record<string, number>>({});
 
-  // Form data - Step 1: Personal Information
-  const [fullNameAr, setFullNameAr] = useState("");
-  const [fullNameEn, setFullNameEn] = useState("");
-  const [birthDate, setBirthDate] = useState("");
-  const [gender, setGender] = useState("");
-  const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+    trigger,
+    getValues,
+    setValue,
+    clearErrors,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } = useForm<FormData>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(FullSchema) as any,
+    mode: "onBlur",
+    defaultValues: {
+      skills: [],
+      companies_ratings: {},
+      job_ratings: {},
+      phone_country: "966",
+    },
+  });
 
-  // Form data - Step 2: Academic Information
-  const [university, setUniversity] = useState("");
-  const [major, setMajor] = useState("");
-  const [uniId, setUniId] = useState("");
-  const [graduationYear, setGraduationYear] = useState("");
-  const [linkedin, setLinkedIn] = useState("");
+  const selectedUniversity = watch("university");
+  const selectedMajor = watch("major");
+  const skills = watch("skills");
 
-  // Form data - Step 3: Concerns & Preferences
-  const [interests, setInterests] = useState("");
-  const [skillsProjects, setSkillsProjects] = useState("");
-  const [experienceVolunteer, setExperienceVolunteer] = useState("");
-  const [freeSpace, setFreeSpace] = useState("");
+  const validateStep = async (): Promise<boolean> => {
+    if (currentStep === 0) {
+      return trigger(["full_name", "gender", "email", "phone_country", "phone_number"]);
+    } else if (currentStep === 1) {
+      const fieldsToCheck = ["university", "major", "uni_id", "graduation_year"];
+      if (selectedUniversity === "Other") fieldsToCheck.push("university_other");
+      if (selectedMajor === "Other") fieldsToCheck.push("major_other");
+      if (watch("linkedin")) fieldsToCheck.push("linkedin");
+      return trigger(fieldsToCheck as unknown as (keyof FormData)[]);
+    } else if (currentStep === 2) {
+      const result = await trigger(["skills", "experience_projects", "commitment_duration"]);
+      if (!cvFile) {
+        setShowError(true);
+        setErrorTitle(lang === "ar" ? "ملف مطلوب" : "File Required");
+        setErrorMessage(lang === "ar" ? "يرجى رفع السيرة الذاتية" : "Please upload your CV");
+        return false;
+      }
+      return result;
+    } else if (currentStep === 3) {
+      const allCompaniesRated = COMPANIES_LIST.every((c) => companiesRatings[c]);
+      const allJobsRated = JOB_TITLES_LIST.every((j) => jobRatings[j]);
 
-  // Form data - Step 4: Company & Job Ordering
-  const [companiesOrder, setCompaniesOrder] = useState<OrderedItem[]>(
-    COMPANIES_LIST.map((company, idx) => ({
-      id: `company-${idx}`,
-      label: company,
-      order: idx + 1,
-    }))
-  );
+      if (!allCompaniesRated || !allJobsRated) {
+        setShowError(true);
+        setErrorTitle(lang === "ar" ? "تقييم مطلوب" : "Ratings Required");
+        setErrorMessage(
+          lang === "ar"
+            ? "يرجى تقييم جميع الشركات والوظائف"
+            : "Please rate all companies and jobs"
+        );
+        return false;
+      }
+      return true;
+    }
+    return true;
+  };
 
-  const [jobTitlesOrder, setJobTitlesOrder] = useState<OrderedItem[]>(
-    JOB_TITLES_LIST.map((job, idx) => ({
-      id: `job-${idx}`,
-      label: job,
-      order: idx + 1,
-    }))
-  );
-
-  // Refs for validation
-  const formRef = useRef<HTMLFormElement>(null);
-
-  // --- Navigation ---
-  const goNext = () => {
-    if (currentStep < TOTAL_STEPS - 1) {
-      setShowConfirmation(false);
+  const goNext = async () => {
+    const isValid = await validateStep();
+    if (isValid && currentStep < TOTAL_STEPS - 1) {
       setCurrentStep((s) => s + 1);
     }
   };
 
   const goPrev = () => {
     if (currentStep > 0) {
-      setShowConfirmation(false);
       setCurrentStep((s) => s - 1);
     }
   };
 
-  // --- File handling ---
-  const [cvFile, setCvFile] = useState<File | null>(null);
+  const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, "");
+    if (value.startsWith("0")) {
+      value = value.substring(1);
+    }
+    setValue("phone_number", value);
+    if (value.length > 0) clearErrors("phone_number");
+  };
+
+  const addSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && skillInput.trim()) {
+      e.preventDefault();
+      const currentSkills = getValues("skills") || [];
+      if (currentSkills.length < 7) {
+        const newSkills = [...currentSkills, skillInput.trim()];
+        setValue("skills", newSkills);
+        setSkillInput("");
+        clearErrors("skills");
+      }
+    }
+  };
+
+  const removeSkill = (index: number) => {
+    const currentSkills = getValues("skills") || [];
+    const newSkills = currentSkills.filter((_, i) => i !== index);
+    setValue("skills", newSkills);
+  };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setCvFile(file);
+    const file = e.target.files?.[0];
+    if (file) {
+      setCvFile(file);
+      clearErrors("cv_file");
+    }
   };
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    e.stopPropagation();
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) {
-      setCvFile(file);
-    }
+    if (file) setCvFile(file);
   };
 
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(true);
+  const setCompanyRating = (company: string, rating: number) => {
+    setCompaniesRatings((prev) => ({
+      ...prev,
+      [company]: prev[company] === rating ? 0 : rating,
+    }));
   };
 
-  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(false);
+  const setJobRating = (job: string, rating: number) => {
+    setJobRatings((prev) => ({
+      ...prev,
+      [job]: prev[job] === rating ? 0 : rating,
+    }));
   };
 
-  // --- Drag and drop for ordering lists ---
-  const handleDragStart = (e: DragEvent<HTMLDivElement>, itemId: string) => {
-    setDraggedItemId(itemId);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDropOrder = (
-    e: DragEvent<HTMLDivElement>,
-    targetId: string,
-    listType: "companies" | "jobs"
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!draggedItemId) return;
-
-    const list = listType === "companies" ? companiesOrder : jobTitlesOrder;
-    const draggedIdx = list.findIndex((item) => item.id === draggedItemId);
-    const targetIdx = list.findIndex((item) => item.id === targetId);
-
-    if (draggedIdx === -1 || targetIdx === -1 || draggedIdx === targetIdx) return;
-
-    const newList = [...list];
-    const [draggedItem] = newList.splice(draggedIdx, 1);
-    newList.splice(targetIdx, 0, draggedItem);
-
-    // Reorder numbers
-    newList.forEach((item, idx) => {
-      item.order = idx + 1;
-    });
-
-    if (listType === "companies") {
-      setCompaniesOrder(newList);
-    } else {
-      setJobTitlesOrder(newList);
-    }
-
-    setDraggedItemId(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedItemId(null);
-  };
-
-  // --- Mobile reordering (up/down arrows) ---
-  const moveItemUp = (itemId: string, listType: "companies" | "jobs") => {
-    const list = listType === "companies" ? companiesOrder : jobTitlesOrder;
-    const idx = list.findIndex((item) => item.id === itemId);
-    if (idx <= 0) return;
-
-    const newList = [...list];
-    [newList[idx], newList[idx - 1]] = [newList[idx - 1], newList[idx]];
-    newList.forEach((item, i) => {
-      item.order = i + 1;
-    });
-
-    if (listType === "companies") {
-      setCompaniesOrder(newList);
-    } else {
-      setJobTitlesOrder(newList);
-    }
-  };
-
-  const moveItemDown = (itemId: string, listType: "companies" | "jobs") => {
-    const list = listType === "companies" ? companiesOrder : jobTitlesOrder;
-    const idx = list.findIndex((item) => item.id === itemId);
-    if (idx >= list.length - 1) return;
-
-    const newList = [...list];
-    [newList[idx], newList[idx + 1]] = [newList[idx + 1], newList[idx]];
-    newList.forEach((item, i) => {
-      item.order = i + 1;
-    });
-
-    if (listType === "companies") {
-      setCompaniesOrder(newList);
-    } else {
-      setJobTitlesOrder(newList);
-    }
-  };
-
-  // --- Submit ---
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
+  const handleFormSubmit = handleSubmit(async () => {
     if (currentStep !== TOTAL_STEPS - 1) return;
 
-    // Client-side validation
-    const missingFields: string[] = [];
-    
-    if (!fullNameEn) missingFields.push(lang === "ar" ? "الاسم بالإنجليزية" : "Name in English");
-    if (!fullNameAr) missingFields.push(lang === "ar" ? "الاسم بالعربية" : "Name in Arabic");
-    if (!birthDate) missingFields.push(lang === "ar" ? "تاريخ الميلاد" : "Birth Date");
-    if (!gender) missingFields.push(lang === "ar" ? "الجنس" : "Gender");
-    if (!email) missingFields.push(lang === "ar" ? "البريد الإلكتروني" : "Email");
-    if (!phoneNumber) missingFields.push(lang === "ar" ? "رقم الهاتف" : "Phone Number");
-    if (!university) missingFields.push(lang === "ar" ? "الجامعة" : "University");
-    if (!major) missingFields.push(lang === "ar" ? "التخصص" : "Major");
-    if (!uniId) missingFields.push(lang === "ar" ? "رقم الهوية الجامعية" : "University ID");
-    if (!graduationYear) missingFields.push(lang === "ar" ? "سنة التخرج" : "Graduation Year");
-
     if (!cvFile) {
-      missingFields.push(lang === "ar" ? "ملف السيرة الذاتية" : "CV File");
-    } else {
-      // Check CV file size (limit to 10MB)
-      const maxSizeMB = 10;
-      const maxSizeBytes = maxSizeMB * 1024 * 1024;
-      if (cvFile.size > maxSizeBytes) {
-        setErrorType("client");
-        setErrorTitle(lang === "ar" ? "حجم الملف كبير جداً" : "File Size Too Large");
-        setErrorMessage(lang === "ar" 
-          ? `حجم ملف السيرة الذاتية يجب أن لا يزيد عن ${maxSizeMB}MB` 
-          : `CV file size must not exceed ${maxSizeMB}MB`);
-        setErrorDetails([lang === "ar" 
-          ? `حجم الملف الحالي: ${(cvFile.size / 1024 / 1024).toFixed(2)}MB` 
-          : `Current file size: ${(cvFile.size / 1024 / 1024).toFixed(2)}MB`]);
-        setShowError(true);
-        return;
-      }
-      
-      // Check file type
-      const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
-      if (!allowedTypes.includes(cvFile.type)) {
-        setErrorType("client");
-        setErrorTitle(lang === "ar" ? "نوع الملف غير مدعوم" : "Unsupported File Type");
-        setErrorMessage(lang === "ar" 
-          ? "يرجى استخدام ملفات PDF أو صور (JPG/PNG)" 
-          : "Please use PDF or image files (JPG/PNG)");
-        setErrorDetails([cvFile.type || "Unknown"]);
-        setShowError(true);
-        return;
-      }
-    }
-
-    if (missingFields.length > 0) {
-      setErrorType("client");
-      setErrorTitle(lang === "ar" ? "حقول مفقودة" : "Missing Required Fields");
-      setErrorMessage(lang === "ar" 
-        ? "يرجى ملء جميع الحقول المطلوبة:" 
-        : "Please fill in all required fields:");
-      setErrorDetails(missingFields);
       setShowError(true);
+      setErrorTitle(lang === "ar" ? "ملف مطلوب" : "File Required");
+      setErrorMessage(lang === "ar" ? "يرجى رفع السيرة الذاتية" : "Please upload your CV");
       return;
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setErrorType("client");
-      setErrorTitle(lang === "ar" ? "بريد إلكتروني غير صحيح" : "Invalid Email");
-      setErrorMessage(lang === "ar" 
-        ? "يرجى إدخال بريد إلكتروني صحيح" 
-        : "Please enter a valid email address");
-      setErrorDetails([email]);
+    if (cvFile.size > 10 * 1024 * 1024) {
       setShowError(true);
+      setErrorTitle(lang === "ar" ? "حجم الملف كبير" : "File Too Large");
+      setErrorMessage(lang === "ar" ? "يجب ألا يتجاوز الحجم 10MB" : "File must not exceed 10MB");
       return;
     }
 
-    // All validations passed, show confirmation
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+    if (!allowedTypes.includes(cvFile.type)) {
+      setShowError(true);
+      setErrorTitle(lang === "ar" ? "نوع ملف غير صحيح" : "Invalid File Type");
+      setErrorMessage(lang === "ar" ? "يجب أن يكون PDF أو صورة" : "Must be PDF or image");
+      return;
+    }
+
     setShowConfirmation(true);
-  };
+  });
 
   const handleConfirmedSubmit = async () => {
     setShowConfirmation(false);
     setIsSubmitting(true);
 
     try {
-      // Serialize ordered lists
-      const companiesOrderedString = companiesOrder
-        .map((item) => `${item.order}-${item.label}`)
-        .join("\n");
-      const jobTitlesOrderedString = jobTitlesOrder
-        .map((item) => `${item.order}-${item.label}`)
-        .join("\n");
+      const data = getValues();
+      const formattedPhone = `+${data.phone_country}${data.phone_number}`;
+      const universityName =
+        data.university === "Other" ? data.university_other : data.university;
+      const majorName = data.major === "Other" ? data.major_other : data.major;
 
       const formData = new FormData();
-      // Step 1
-      formData.append("name_ar", fullNameAr);
-      formData.append("name_en", fullNameEn);
-      formData.append("birthdate", birthDate);
-      formData.append("gender", gender);
-      formData.append("email", email);
-      formData.append("phone_number", phoneNumber);
-      // Step 2
-      formData.append("university", university);
-      formData.append("major", major);
-      formData.append("uni_id", uniId);
-      formData.append("graduation_year", graduationYear);
-      formData.append("linkedin", linkedin);
-      // Step 3
-      formData.append("interests", interests);
-      formData.append("skills_projects", skillsProjects);
-      formData.append("experience_volunteer", experienceVolunteer);
-      formData.append("free_space", freeSpace);
-      // Step 4
-      formData.append("companies_order", companiesOrderedString);
-      formData.append("job_titles_order", jobTitlesOrderedString);
-      // CV
+      formData.append("full_name", data.full_name);
+      formData.append("gender", data.gender);
+      formData.append("email", data.email);
+      formData.append("phone_number", formattedPhone);
+      formData.append("university", universityName || "");
+      formData.append("major", majorName || "");
+      formData.append("uni_id", data.uni_id);
+      formData.append("graduation_year", data.graduation_year);
+      formData.append("linkedin", data.linkedin || "");
+      formData.append("skills", JSON.stringify(data.skills));
+      formData.append("experience_projects", data.experience_projects);
+      formData.append("free_space", data.free_space || "");
+      formData.append("commitment_duration", data.commitment_duration);
+      formData.append("companies_ratings", JSON.stringify(companiesRatings));
+      formData.append("job_ratings", JSON.stringify(jobRatings));
       formData.append("cv_file", cvFile!);
 
       const response = await fetch("/api/register", {
@@ -353,72 +268,26 @@ export default function RegisterPage() {
 
       const result = await response.json();
 
-            if (!response.ok) {
-        // Server error - show friendly error dialog
-        const errorMsg = result.error || "Failed to submit registration";
-        let errorDetail = "";
-        // Parse common server errors
-        if (errorMsg.includes("email") || errorMsg.toLowerCase().includes("already exists")) {
-          setErrorTitle(lang === "ar" ? "البريد الإلكتروني مسجل بالفعل" : "Email Already Registered");
-          errorDetail = lang === "ar" 
-            ? "هذا البريد الإلكتروني مسجل بالفعل في النظام" 
-            : "This email is already registered in the system";
-        } else if (errorMsg.includes("database") || errorMsg.includes("server")) {
-          setErrorTitle(lang === "ar" ? "خطأ في الخادم" : "Server Error");
-          errorDetail = lang === "ar" 
-            ? "حدث خطأ في الخادم. يرجى المحاولة لاحقاً" 
-            : "A server error occurred. Please try again later";
-        } else if (errorMsg.includes("file") || errorMsg.includes("upload")) {
-          setErrorTitle(lang === "ar" ? "خطأ في رفع الملف" : "File Upload Error");
-          errorDetail = lang === "ar" 
-            ? "حدث خطأ أثناء رفع الملف. تأكد من صحة الملف" 
-            : "An error occurred while uploading the file. Please check your file";
-        } else {
-          setErrorTitle(lang === "ar" ? "خطأ في التسجيل" : "Registration Error");
-          errorDetail = errorMsg;
-        }
-
-        setErrorType("server");
-        setErrorMessage(errorDetail);
-        setErrorDetails([result.error || "Unknown error"]);
+      if (!response.ok) {
+        setErrorTitle(lang === "ar" ? "خطأ" : "Error");
+        setErrorMessage(result.error || (lang === "ar" ? "حدث خطأ" : "An error occurred"));
         setShowError(true);
         return;
       }
 
-      if (!result?.success || !result?.registration?.id) {
-        setErrorType("server");
-        setErrorTitle(lang === "ar" ? "استجابة غير متوقعة" : "Unexpected Response");
-        setErrorMessage(lang === "ar" 
-          ? "تم التسجيل ولكن لم نتمكن من تأكيد النجاح" 
-          : "Registration processed but confirmation failed");
-        setErrorDetails([]);
-        setShowError(true);
-        return;
-      }
-
-      // Success
       setShowSuccess(true);
     } catch (error: unknown) {
       console.error("Registration Error:", error);
-      
-      setErrorType("server");
       setErrorTitle(lang === "ar" ? "خطأ في الاتصال" : "Connection Error");
-      setErrorMessage(lang === "ar" 
-        ? "حدث خطأ أثناء الاتصال بالخادم. تحقق من اتصالك بالإنترنت" 
-        : "A network error occurred. Please check your internet connection");
-      
-      const devMsg = error instanceof Error ? error.message : JSON.stringify(error);
-      setErrorDetails([devMsg]);
+      setErrorMessage(lang === "ar" ? "حدث خطأ أثناء الاتصال" : "A connection error occurred");
       setShowError(true);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // --- Progress ---
   const progressPercent = ((currentStep + 1) / TOTAL_STEPS) * 100;
 
-  // --- Closed View ---
   if (!isRegistrationOpen) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -440,7 +309,6 @@ export default function RegisterPage() {
     );
   }
 
-  // --- Success View ---
   if (showSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -462,107 +330,28 @@ export default function RegisterPage() {
     );
   }
 
-  // --- Confirmation Modal ---
-  // --- Error Modal ---
   const ErrorModal = () => (
     <>
-      {/* Backdrop */}
       {showError && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300"
           onClick={() => setShowError(false)}
         />
       )}
-
-      {/* Modal */}
       {showError && (
         <div className="fixed inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-xl border border-white/40 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full transform transition-all duration-300 animate-modal-in">
-            {/* Close Button */}
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-xl border border-white/40 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full">
             <button
               onClick={() => setShowError(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition text-gray-500 hover:text-gray-700"
+              className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition text-gray-500"
             >
               <X className="w-5 h-5" />
             </button>
-
-            {/* Error Icon & Title */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                errorType === "client" 
-                  ? "bg-amber-50" 
-                  : "bg-red-50"
-              }`}>
-                <svg
-                  className={`w-6 h-6 ${
-                    errorType === "client" 
-                      ? "text-amber-600" 
-                      : "text-red-600"
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">{errorTitle}</h2>
-                <p className={`text-sm font-semibold ${
-                  errorType === "client" 
-                    ? "text-amber-600" 
-                    : "text-red-600"
-                }`}>
-                  {errorType === "client" 
-                    ? (lang === "ar" ? "خطأ من جانبك" : "Your Input Issue") 
-                    : (lang === "ar" ? "خطأ في الخادم" : "Server Issue")}
-                </p>
-              </div>
-            </div>
-
-            {/* Main Message */}
-            <p className="text-gray-700 mb-4 leading-relaxed">{errorMessage}</p>
-
-            {/* Error Details */}
-            {errorDetails.length > 0 && (
-              <div className={`mb-6 rounded-2xl p-4 text-sm space-y-2 ${
-                errorType === "client" 
-                  ? "bg-amber-50/50 border border-amber-100" 
-                  : "bg-red-50/50 border border-red-100"
-              }`}>
-                {errorDetails.map((detail, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <span className={`text-lg font-bold mt-0.5 ${
-                      errorType === "client" 
-                        ? "text-amber-600" 
-                        : "text-red-600"
-                    }`}>
-                      •
-                    </span>
-                    <span className="text-gray-700">{detail}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Help Text */}
-            {errorType === "server" && (
-              <div className="mb-6 text-xs text-gray-600 bg-blue-50 rounded-lg p-3 border border-blue-100">
-                <p className="font-semibold mb-1">
-                  {lang === "ar" ? "ما العمل؟" : "What to do?"}
-                </p>
-                <p>
-                  {lang === "ar" 
-                    ? "تحقق من اتصالك بالإنترنت وحاول مرة أخرى. إذا استمرت المشكلة، تواصل معنا." 
-                    : "Check your internet connection and try again. If the issue persists, contact support."}
-                </p>
-              </div>
-            )}
-
-            {/* Close Button */}
+            <h2 className="text-xl font-bold text-gray-900 mb-3">{errorTitle}</h2>
+            <p className="text-gray-700 mb-4">{errorMessage}</p>
             <button
               onClick={() => setShowError(false)}
-              className="w-full px-4 py-3 bg-gray-900 text-white font-semibold rounded-full hover:bg-black transition-all duration-200"
+              className="w-full px-4 py-3 bg-gray-900 text-white font-semibold rounded-full hover:bg-black transition"
             >
               {lang === "ar" ? "فهمت" : "Got it"}
             </button>
@@ -574,84 +363,47 @@ export default function RegisterPage() {
 
   const ConfirmationModal = () => (
     <>
-      {/* Backdrop */}
       {showConfirmation && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300"
           onClick={() => setShowConfirmation(false)}
         />
       )}
-
-      {/* Modal */}
       {showConfirmation && (
         <div className="fixed inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-xl border border-white/40 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full transform transition-all duration-300 animate-modal-in">
-            {/* Close Button */}
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-xl border border-white/40 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full">
             <button
               onClick={() => setShowConfirmation(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition text-gray-500 hover:text-gray-700"
+              className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition text-gray-500"
             >
               <X className="w-5 h-5" />
             </button>
-
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">{lang === "ar" ? "تأكيد التسجيل" : "Confirm Registration"}</h2>
-            <p className="text-gray-500 text-sm mb-6">{lang === "ar" ? "يرجى التحقق من بيانات التسجيل" : "Please review your registration details"}</p>
-
-            {/* Key Information */}
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {lang === "ar" ? "تأكيد التسجيل" : "Confirm Registration"}
+            </h2>
             <div className="space-y-3 mb-6 bg-gray-50 rounded-2xl p-4">
               <div>
                 <p className="text-xs text-gray-500 font-semibold">{lang === "ar" ? "الاسم" : "Name"}</p>
-                <p className="text-gray-800 font-semibold">{fullNameEn} {fullNameAr && `(${fullNameAr})`}</p>
+                <p className="text-gray-800 font-semibold">{getValues("full_name")}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500 font-semibold">{lang === "ar" ? "البريد الإلكتروني" : "Email"}</p>
-                <p className="text-gray-800 font-semibold break-all">{email}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-semibold">{lang === "ar" ? "أفضل شركة" : "Top Company"}</p>
-                <p className="text-gray-800 font-semibold">{companiesOrder[0]?.label}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-semibold">{lang === "ar" ? "أفضل وظيفة" : "Top Job Title"}</p>
-                <p className="text-gray-800 font-semibold">{jobTitlesOrder[0]?.label}</p>
+                <p className="text-xs text-gray-500 font-semibold">{lang === "ar" ? "البريد" : "Email"}</p>
+                <p className="text-gray-800 font-semibold break-all">{getValues("email")}</p>
               </div>
             </div>
-
-            {/* More Details Toggle */}
-            <button
-              onClick={() => setExpandedDetails(!expandedDetails)}
-              className="w-full flex items-center justify-center gap-2 text-brand hover:text-brand-light font-semibold text-sm mb-6 transition"
-            >
-              {expandedDetails ? (lang === "ar" ? "إخفاء التفاصيل" : "Hide Details") : (lang === "ar" ? "عرض المزيد" : "More Details")}
-              <ChevronDown className={`w-4 h-4 transition-transform ${expandedDetails ? "rotate-180" : ""}`} />
-            </button>
-
-            {/* Expanded Details */}
-            {expandedDetails && (
-              <div className="mb-6 bg-blue-50/50 rounded-2xl p-4 max-h-48 overflow-y-auto space-y-2 text-sm">
-                <div><span className="text-gray-600">{lang === "ar" ? "تاريخ الميلاد:" : "Birth Date:"}</span> <span className="text-gray-800 font-semibold">{birthDate}</span></div>
-                <div><span className="text-gray-600">{lang === "ar" ? "الجنس:" : "Gender:"}</span> <span className="text-gray-800 font-semibold">{gender}</span></div>
-                <div><span className="text-gray-600">{lang === "ar" ? "الجامعة:" : "University:"}</span> <span className="text-gray-800 font-semibold">{university}</span></div>
-                <div><span className="text-gray-600">{lang === "ar" ? "التخصص:" : "Major:"}</span> <span className="text-gray-800 font-semibold">{major}</span></div>
-                <div><span className="text-gray-600">{lang === "ar" ? "سنة التخرج:" : "Graduation Year:"}</span> <span className="text-gray-800 font-semibold">{graduationYear}</span></div>
-                <div><span className="text-gray-600">{lang === "ar" ? "الاهتمامات:" : "Interests:"}</span> <span className="text-gray-800 font-semibold">{interests?.substring(0, 50)}...</span></div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirmation(false)}
-                className="flex-1 px-4 py-3 text-gray-600 font-semibold rounded-full border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
+                className="flex-1 px-4 py-3 text-gray-600 font-semibold rounded-full border-2 border-gray-200 hover:bg-gray-50 transition"
               >
                 {lang === "ar" ? "إلغاء" : "Cancel"}
               </button>
               <button
                 onClick={handleConfirmedSubmit}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-3 bg-brand text-white font-semibold rounded-full hover:bg-brand-light transition-all duration-200 shadow-md shadow-brand/25 disabled:opacity-70 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-3 bg-brand text-white font-semibold rounded-full hover:bg-brand-light transition disabled:opacity-70"
               >
-                {isSubmitting ? (lang === "ar" ? "جاري الإرسال..." : "Submitting...") : (lang === "ar" ? "تأكيد" : "Confirm")}
+                {isSubmitting ? (lang === "ar" ? "جاري..." : "Submitting...") : (lang === "ar" ? "تأكيد" : "Confirm")}
               </button>
             </div>
           </div>
@@ -660,7 +412,6 @@ export default function RegisterPage() {
     </>
   );
 
-  // --- Form View ---
   return (
     <div className="min-h-screen flex flex-col items-center p-4 pt-8 pb-12 relative">
       <div className="animated-bg" />
@@ -668,7 +419,6 @@ export default function RegisterPage() {
       <ConfirmationModal />
 
       <div className="relative z-10 w-full max-w-[580px]">
-        {/* Header */}
         <header className="flex justify-center items-center relative mb-12">
           <Link href="/" className="inline-block z-10 hover:scale-105 transition-transform">
             <Image
@@ -682,19 +432,17 @@ export default function RegisterPage() {
           <button
             onClick={toggleLang}
             type="button"
-            className="absolute start-0 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full px-4 py-2 text-sm font-semibold text-gray-800 hover:text-brand hover:border-brand transition z-10"
+            className="absolute start-0 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full px-4 py-2 text-sm font-semibold text-gray-800 hover:text-brand transition z-10"
           >
             {lang === "ar" ? "English" : "عربي"}
           </button>
         </header>
 
-        {/* Card */}
         <div className="bg-white/95 backdrop-blur-xl border border-white/40 rounded-3xl shadow-xl p-8 md:p-10">
-          {/* Progress */}
           <div className="mb-8">
             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mb-3">
               <div
-                className={`h-full bg-brand rounded-full transition-all duration-500 ease-out ${lang === "ar" ? "float-right" : ""}`}
+                className="h-full bg-brand rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -703,8 +451,8 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          <form ref={formRef} onSubmit={handleSubmit}>
-            {/* Step 1: Personal Information */}
+          <form onSubmit={handleFormSubmit}>
+            {/* Step 1 */}
             {currentStep === 0 && (
               <div className="step-card active">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">{t("regNewStep1Title")}</h2>
@@ -712,46 +460,18 @@ export default function RegisterPage() {
 
                 <div className="space-y-5">
                   <div>
-                    <label htmlFor="fullNameAr" className="block text-sm font-semibold text-gray-800 mb-2">
-                      {t("regFullNameAr")}
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                      {t("regFullName")}
                     </label>
                     <input
                       type="text"
-                      id="fullNameAr"
-                      value={fullNameAr}
-                      onChange={(e) => setFullNameAr(e.target.value)}
-                      placeholder={t("regFullNameArPlaceholder")}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
-                      dir="rtl"
+                      placeholder={t("regFullNamePlaceholder")}
+                      {...register("full_name")}
+                      className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                        errors.full_name ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                      }`}
                     />
-                  </div>
-
-                  <div>
-                    <label htmlFor="fullNameEn" className="block text-sm font-semibold text-gray-800 mb-2">
-                      {t("regFullNameEn")}
-                    </label>
-                    <input
-                      type="text"
-                      id="fullNameEn"
-                      value={fullNameEn}
-                      onChange={(e) => setFullNameEn(e.target.value)}
-                      placeholder={t("regFullNameEnPlaceholder")}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
-                      dir="ltr"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="birthDate" className="block text-sm font-semibold text-gray-800 mb-2">
-                      {t("regBirthDate")}
-                    </label>
-                    <input
-                      type="date"
-                      id="birthDate"
-                      value={birthDate}
-                      onChange={(e) => setBirthDate(e.target.value)}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
-                    />
+                    {errors.full_name && <p className="text-red-600 text-sm mt-1">{errors.full_name.message}</p>}
                   </div>
 
                   <div>
@@ -769,53 +489,69 @@ export default function RegisterPage() {
                         >
                           <input
                             type="radio"
-                            name="gender"
                             value={opt.value}
-                            checked={gender === opt.value}
-                            onChange={(e) => setGender(e.target.value)}
-                            className="absolute opacity-0 cursor-pointer"
+                            {...register("gender")}
+                            className="absolute opacity-0"
                           />
                           <span className="custom-radio" />
-                          <span>{t(opt.labelKey)}</span>
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                          <span>{t(opt.labelKey as any)}</span>
                         </label>
                       ))}
                     </div>
+                    {errors.gender && <p className="text-red-600 text-sm mt-2">{errors.gender.message}</p>}
                   </div>
 
                   <div>
-                    <label htmlFor="email" className="block text-sm font-semibold text-gray-800 mb-2">
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regEmail")}
                     </label>
                     <input
                       type="email"
-                      id="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
                       placeholder={t("regEmailPlaceholder")}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
+                      {...register("email")}
+                      className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                        errors.email ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                      }`}
                       dir="ltr"
                     />
+                    {errors.email && <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>}
                   </div>
 
                   <div>
-                    <label htmlFor="phoneNumber" className="block text-sm font-semibold text-gray-800 mb-2">
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regPhoneNumber")}
                     </label>
-                    <input
-                      type="tel"
-                      id="phoneNumber"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder={t("regPhoneNumberPlaceholder")}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
-                      dir="ltr"
-                    />
+                    <div className="flex gap-2">
+                      <div className="w-20">
+                        <select
+                          {...register("phone_country")}
+                          className="w-full px-2 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
+                        >
+                          <option value="966">+966</option>
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="tel"
+                          placeholder={t("regPhoneNumberFieldPlaceholder")}
+                          {...register("phone_number")}
+                          onChange={handlePhoneChange}
+                          maxLength={10}
+                          className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                            errors.phone_number ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                          }`}
+                          dir="ltr"
+                        />
+                      </div>
+                    </div>
+                    {errors.phone_number && <p className="text-red-600 text-sm mt-1">{errors.phone_number.message}</p>}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Step 2: Academic Information */}
+            {/* Step 2 */}
             {currentStep === 1 && (
               <div className="step-card active">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">{t("regNewStep2Title")}</h2>
@@ -823,82 +559,128 @@ export default function RegisterPage() {
 
                 <div className="space-y-5">
                   <div>
-                    <label htmlFor="university" className="block text-sm font-semibold text-gray-800 mb-2">
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regUniversity")}
                     </label>
-                    <input
-                      type="text"
-                      id="university"
-                      value={university}
-                      onChange={(e) => setUniversity(e.target.value)}
-                      placeholder={t("regUniversityPlaceholder")}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
-                    />
+                    <select
+                      {...register("university")}
+                      className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                        errors.university ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                      }`}
+                    >
+                      <option value="">Select University...</option>
+                      {SAUDI_UNIVERSITIES.map((uni) => (
+                        <option key={uni.en} value={uni.en}>
+                          {lang === "ar" ? uni.ar : uni.en}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.university && <p className="text-red-600 text-sm mt-1">{errors.university.message}</p>}
+
+                    {selectedUniversity === "Other" && (
+                      <div className="mt-3">
+                        <input
+                          type="text"
+                          placeholder={lang === "ar" ? "اسم جامعتك" : "Enter your university name"}
+                          {...register("university_other")}
+                          className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                            errors.university_other ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                          }`}
+                        />
+                        {errors.university_other && <p className="text-red-600 text-sm mt-1">{errors.university_other.message}</p>}
+                      </div>
+                    )}
                   </div>
 
                   <div>
-                    <label htmlFor="major" className="block text-sm font-semibold text-gray-800 mb-2">
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regMajor")}
                     </label>
-                    <input
-                      type="text"
-                      id="major"
-                      value={major}
-                      onChange={(e) => setMajor(e.target.value)}
-                      placeholder={t("regMajorPlaceholder")}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
-                    />
+                    <select
+                      {...register("major")}
+                      className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                        errors.major ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                      }`}
+                    >
+                      <option value="">Select Major...</option>
+                      {PROFESSIONAL_MAJORS.map((maj) => (
+                        <option key={maj.en} value={maj.en}>
+                          {lang === "ar" ? maj.ar : maj.en}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.major && <p className="text-red-600 text-sm mt-1">{errors.major.message}</p>}
+
+                    {selectedMajor === "Other" && (
+                      <div className="mt-3">
+                        <input
+                          type="text"
+                          placeholder={lang === "ar" ? "تخصصك" : "Enter your major"}
+                          {...register("major_other")}
+                          className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                            errors.major_other ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                          }`}
+                        />
+                        {errors.major_other && <p className="text-red-600 text-sm mt-1">{errors.major_other.message}</p>}
+                      </div>
+                    )}
                   </div>
 
                   <div>
-                    <label htmlFor="uniId" className="block text-sm font-semibold text-gray-800 mb-2">
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regUniId")}
                     </label>
                     <input
                       type="text"
-                      id="uniId"
-                      value={uniId}
-                      onChange={(e) => setUniId(e.target.value)}
                       placeholder={t("regUniIdPlaceholder")}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
+                      {...register("uni_id")}
+                      className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                        errors.uni_id ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                      }`}
                       dir="ltr"
                     />
+                    {errors.uni_id && <p className="text-red-600 text-sm mt-1">{errors.uni_id.message}</p>}
                   </div>
 
                   <div>
-                    <label htmlFor="graduationYear" className="block text-sm font-semibold text-gray-800 mb-2">
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regGraduationYear")}
                     </label>
-                    <input
-                      type="text"
-                      id="graduationYear"
-                      value={graduationYear}
-                      onChange={(e) => setGraduationYear(e.target.value)}
-                      placeholder={t("regGraduationYearPlaceholder")}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
-                      dir="ltr"
-                    />
+                    <select
+                      {...register("graduation_year")}
+                      className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                        errors.graduation_year ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                      }`}
+                    >
+                      <option value="">Select Year...</option>
+                      <option value="Fresh Graduate">{t("regFreshGraduate")}</option>
+                      <option value="2027">{t("regYear2027")}</option>
+                      <option value="2028">{t("regYear2028")}</option>
+                      <option value="2029">{t("regYear2029")}</option>
+                    </select>
+                    {errors.graduation_year && <p className="text-red-600 text-sm mt-1">{errors.graduation_year.message}</p>}
                   </div>
 
                   <div>
-                    <label htmlFor="linkedin" className="block text-sm font-semibold text-gray-800 mb-2">
-                      {t("regLinkedIn")}
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                      {t("regLinkedInOptional")}
                     </label>
                     <input
                       type="url"
-                      id="linkedin"
-                      value={linkedin}
-                      onChange={(e) => setLinkedIn(e.target.value)}
-                      placeholder={t("regLinkedInPlaceholder")}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
+                      placeholder="https://linkedin.com/in/yourprofile"
+                      {...register("linkedin")}
+                      className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                        errors.linkedin ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                      }`}
                       dir="ltr"
                     />
+                    {errors.linkedin && <p className="text-red-600 text-sm mt-1">{errors.linkedin.message}</p>}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Step 3: Concerns & Preferences */}
+            {/* Step 3 */}
             {currentStep === 2 && (
               <div className="step-card active">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">{t("regNewStep3Title")}</h2>
@@ -906,86 +688,110 @@ export default function RegisterPage() {
 
                 <div className="space-y-5">
                   <div>
-                    <label htmlFor="interests" className="block text-sm font-semibold text-gray-800 mb-2">
-                      {t("regInterests")}
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                      {t("regSkillsInput")}
                     </label>
-                    <textarea
-                      id="interests"
-                      value={interests}
-                      onChange={(e) => setInterests(e.target.value)}
-                      placeholder={t("regInterestsPlaceholder")}
-                      rows={3}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition resize-none"
+                    <input
+                      type="text"
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyDown={addSkill}
+                      placeholder={t("regSkillsPlaceholder")}
+                      disabled={skills.length >= 7}
+                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition disabled:opacity-60"
                     />
+                    <p className="text-xs text-gray-500 mt-2">
+                      {skills.length}/7 {lang === "ar" ? "مهارات" : "skills"}
+                    </p>
+
+                    {skills.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {skills.map((skill, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-2 px-3 py-1 bg-brand/10 text-brand rounded-full text-sm font-medium"
+                          >
+                            {skill}
+                            <button
+                              type="button"
+                              onClick={() => removeSkill(idx)}
+                              className="ml-1 hover:text-brand-dark"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {errors.skills && <p className="text-red-600 text-sm mt-2">{errors.skills.message}</p>}
                   </div>
 
                   <div>
-                    <label htmlFor="skillsProjects" className="block text-sm font-semibold text-gray-800 mb-2">
-                      {t("regSkillsProjects")}
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                      {t("regExperienceProjects")}
                     </label>
                     <textarea
-                      id="skillsProjects"
-                      value={skillsProjects}
-                      onChange={(e) => setSkillsProjects(e.target.value)}
-                      placeholder={t("regSkillsProjectsPlaceholder")}
-                      rows={3}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition resize-none"
+                      placeholder={t("regExperienceProjectsPlaceholder")}
+                      {...register("experience_projects")}
+                      rows={4}
+                      className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition resize-none ${
+                        errors.experience_projects ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                      }`}
                     />
+                    {errors.experience_projects && <p className="text-red-600 text-sm mt-1">{errors.experience_projects.message}</p>}
                   </div>
 
                   <div>
-                    <label htmlFor="experienceVolunteer" className="block text-sm font-semibold text-gray-800 mb-2">
-                      {t("regExperienceVolunteer")}
-                    </label>
-                    <textarea
-                      id="experienceVolunteer"
-                      value={experienceVolunteer}
-                      onChange={(e) => setExperienceVolunteer(e.target.value)}
-                      placeholder={t("regExperienceVolunteerPlaceholder")}
-                      rows={3}
-                      className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition resize-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="freeSpace" className="block text-sm font-semibold text-gray-800 mb-2">
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regFreeSpace")}
                     </label>
                     <textarea
-                      id="freeSpace"
-                      value={freeSpace}
-                      onChange={(e) => setFreeSpace(e.target.value)}
                       placeholder={t("regFreeSpacePlaceholder")}
+                      {...register("free_space")}
                       rows={3}
                       className="w-full px-4 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition resize-none"
                     />
                   </div>
 
-                  {/* CV Upload */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
-                      CV Upload
+                      {t("regCommitmentDuration")}
                     </label>
+                    <select
+                      {...register("commitment_duration")}
+                      className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                        errors.commitment_duration ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                      }`}
+                    >
+                      <option value="">Select Duration...</option>
+                      <option value="One week">{t("regCommitment1Week")}</option>
+                      <option value="Two weeks">{t("regCommitment2Weeks")}</option>
+                      <option value="One month">{t("regCommitment1Month")}</option>
+                    </select>
+                    {errors.commitment_duration && <p className="text-red-600 text-sm mt-1">{errors.commitment_duration.message}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">CV Upload</label>
                     <div
                       className={`file-drop-area ${dragOver ? "dragover" : ""}`}
                       onDrop={handleDrop}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOver(true);
+                      }}
+                      onDragLeave={() => setDragOver(false)}
                     >
-                      <UploadCloud className="w-12 h-12 text-gray-400 mb-4 transition-colors group-hover:text-brand" />
-                      <span
-                        className={`text-lg font-semibold mb-2 break-all ${
-                          cvFile ? "text-brand" : "text-gray-800"
-                        }`}
-                      >
-                        {cvFile ? cvFile.name : t("regFileMsg")}
+                      <UploadCloud className="w-12 h-12 text-gray-400 mb-4" />
+                      <span className={`text-lg font-semibold mb-2 break-all ${cvFile ? "text-brand" : "text-gray-800"}`}>
+                        {cvFile ? cvFile.name : "Choose a file or drag it here"}
                       </span>
-                      <span className="text-sm text-gray-400">{t("regFileFormat")}</span>
+                      <span className="text-sm text-gray-400">PDF, JPG, PNG (max 10MB)</span>
                       <input
                         type="file"
                         accept=".pdf,image/jpeg,image/png"
                         onChange={handleFileChange}
-                        required
+                        className="absolute inset-0 opacity-0 cursor-pointer"
                       />
                     </div>
                   </div>
@@ -993,63 +799,38 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {/* Step 4: Company & Job Ordering */}
+            {/* Step 4: Star Ratings */}
             {currentStep === 3 && (
               <div className="step-card active">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">{t("regNewStep4Title")}</h2>
-                <p className="text-gray-500 text-lg mb-8">{t("regNewStep4Desc")}</p>
+                <p className="text-gray-500 text-lg mb-2">{t("regNewStep4Desc")}</p>
+                <p className="text-sm text-amber-600 mb-6">{t("regRateInstruction")}</p>
 
                 <div className="space-y-8">
                   {/* Companies */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-4">
-                      {t("regCompanies")}
-                    </label>
-                    <p className="text-xs text-gray-500 mb-3 hidden md:block">{t("regDragInstruction")}</p>
-                    <p className="text-xs text-gray-500 mb-3 md:hidden">{lang === "ar" ? "استخدم الأزرار للترتيب" : "Use arrows to reorder"}</p>
-                    <div className="space-y-2">
-                      {companiesOrder.map((company, idx) => (
-                        <div
-                          key={company.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, company.id)}
-                          onDragEnter={handleDragEnter}
-                          onDragOver={handleDragOver}
-                          onDrop={(e) => handleDropOrder(e, company.id, "companies")}
-                          onDragEnd={handleDragEnd}
-                          className={`flex items-center gap-3 p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-gray-50 border-2 border-gray-200 rounded-xl transition-all duration-200 ${
-                            draggedItemId === company.id
-                              ? "opacity-50 border-brand bg-gradient-to-r from-brand/10 to-brand/5 shadow-md"
-                              : "hover:border-brand/50 hover:bg-gradient-to-r hover:from-brand/5 hover:to-brand/5 hover:shadow-sm"
-                          }`}
-                        >
-                          {/* Desktop: Drag Handle */}
-                          <GripVertical className="w-5 h-5 text-gray-400 flex-shrink-0 hidden md:block" />
-                          
-                          {/* Order Number */}
-                          <span className="font-bold text-lg text-brand min-w-8">{company.order}.</span>
-                          
-                          {/* Company Name */}
-                          <span className="font-semibold text-gray-800 flex-1 text-sm sm:text-base">{company.label}</span>
-                          
-                          {/* Mobile: Arrow Buttons */}
-                          <div className="flex md:hidden gap-1">
-                            <button
-                              type="button"
-                              onClick={() => moveItemUp(company.id, "companies")}
-                              disabled={idx === 0}
-                              className="p-2 rounded-lg bg-white border border-gray-200 hover:border-brand/50 hover:bg-brand/5 text-gray-600 hover:text-brand transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 duration-150"
-                            >
-                              <ChevronUp className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveItemDown(company.id, "companies")}
-                              disabled={idx === companiesOrder.length - 1}
-                              className="p-2 rounded-lg bg-white border border-gray-200 hover:border-brand/50 hover:bg-brand/5 text-gray-600 hover:text-brand transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 duration-150"
-                            >
-                              <ChevronDown className="w-4 h-4" />
-                            </button>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">{t("regCompanies")}</h3>
+                    <div className="space-y-3">
+                      {COMPANIES_LIST.map((company) => (
+                        <div key={company} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-brand/50 transition">
+                          <span className="font-semibold text-gray-800">{company}</span>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => setCompanyRating(company, star)}
+                                className="transition hover:scale-110"
+                              >
+                                <Star
+                                  className={`w-6 h-6 ${
+                                    companiesRatings[company] >= star
+                                      ? "fill-brand text-brand"
+                                      : "text-gray-300"
+                                  }`}
+                                />
+                              </button>
+                            ))}
                           </div>
                         </div>
                       ))}
@@ -1058,54 +839,28 @@ export default function RegisterPage() {
 
                   {/* Job Titles */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-4">
-                      {t("regJobTitles")}
-                    </label>
-                    <p className="text-xs text-gray-500 mb-3 hidden md:block">{t("regDragInstruction")}</p>
-                    <p className="text-xs text-gray-500 mb-3 md:hidden">{lang === "ar" ? "استخدم الأزرار للترتيب" : "Use arrows to reorder"}</p>
-                    <div className="space-y-2">
-                      {jobTitlesOrder.map((job, idx) => (
-                        <div
-                          key={job.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, job.id)}
-                          onDragEnter={handleDragEnter}
-                          onDragOver={handleDragOver}
-                          onDrop={(e) => handleDropOrder(e, job.id, "jobs")}
-                          onDragEnd={handleDragEnd}
-                          className={`flex items-center gap-3 p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-gray-50 border-2 border-gray-200 rounded-xl transition-all duration-200 ${
-                            draggedItemId === job.id
-                              ? "opacity-50 border-brand bg-gradient-to-r from-brand/10 to-brand/5 shadow-md"
-                              : "hover:border-brand/50 hover:bg-gradient-to-r hover:from-brand/5 hover:to-brand/5 hover:shadow-sm"
-                          }`}
-                        >
-                          {/* Desktop: Drag Handle */}
-                          <GripVertical className="w-5 h-5 text-gray-400 flex-shrink-0 hidden md:block" />
-                          
-                          {/* Order Number */}
-                          <span className="font-bold text-lg text-brand min-w-8">{job.order}.</span>
-                          
-                          {/* Job Title */}
-                          <span className="font-semibold text-gray-800 flex-1 text-sm sm:text-base">{job.label}</span>
-                          
-                          {/* Mobile: Arrow Buttons */}
-                          <div className="flex md:hidden gap-1">
-                            <button
-                              type="button"
-                              onClick={() => moveItemUp(job.id, "jobs")}
-                              disabled={idx === 0}
-                              className="p-2 rounded-lg bg-white border border-gray-200 hover:border-brand/50 hover:bg-brand/5 text-gray-600 hover:text-brand transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 duration-150"
-                            >
-                              <ChevronUp className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => moveItemDown(job.id, "jobs")}
-                              disabled={idx === jobTitlesOrder.length - 1}
-                              className="p-2 rounded-lg bg-white border border-gray-200 hover:border-brand/50 hover:bg-brand/5 text-gray-600 hover:text-brand transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 duration-150"
-                            >
-                              <ChevronDown className="w-4 h-4" />
-                            </button>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">{t("regJobTitles")}</h3>
+                    <div className="space-y-3">
+                      {JOB_TITLES_LIST.map((job) => (
+                        <div key={job} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-brand/50 transition">
+                          <span className="font-semibold text-gray-800">{job}</span>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => setJobRating(job, star)}
+                                className="transition hover:scale-110"
+                              >
+                                <Star
+                                  className={`w-6 h-6 ${
+                                    jobRatings[job] >= star
+                                      ? "fill-brand text-brand"
+                                      : "text-gray-300"
+                                  }`}
+                                />
+                              </button>
+                            ))}
                           </div>
                         </div>
                       ))}
@@ -1114,6 +869,8 @@ export default function RegisterPage() {
                 </div>
               </div>
             )}
+
+            {/* Navigation */}
             <div className="flex items-center mt-10 pt-6 border-t border-gray-100">
               {currentStep > 0 ? (
                 <button
@@ -1133,7 +890,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={goNext}
-                  className="px-8 py-3 text-base font-semibold rounded-full bg-brand text-white hover:bg-brand-light transition shadow-md shadow-brand/25 hover:shadow-lg hover:-translate-y-0.5"
+                  className="px-8 py-3 text-base font-semibold rounded-full bg-brand text-white hover:bg-brand-light transition shadow-md shadow-brand/25"
                 >
                   {t("regBtnNext")}
                 </button>
@@ -1141,7 +898,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting || !cvFile}
-                  className="px-8 py-3 text-base font-semibold rounded-full bg-brand text-white hover:bg-brand-light transition shadow-md shadow-brand/25 hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="px-8 py-3 text-base font-semibold rounded-full bg-brand text-white hover:bg-brand-light transition shadow-md shadow-brand/25 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? t("regBtnUploading") : t("regBtnSubmit")}
                 </button>

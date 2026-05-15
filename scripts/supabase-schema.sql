@@ -2,9 +2,7 @@ create table if not exists public.registrations (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
   -- Personal Information
-  name_ar text not null,
-  name_en text not null,
-  birthdate date not null,
+  full_name text not null,
   gender text not null,
   email text not null,
   phone_number text not null,
@@ -13,17 +11,17 @@ create table if not exists public.registrations (
   major text not null,
   uni_id text not null,
   graduation_year text not null,
-  linkedin text not null,
+  linkedin text,
   -- Concerns & Preferences
-  interests text not null,
-  skills_projects text not null,
-  experience_volunteer text not null,
+  skills text[] not null,
+  experience_projects text not null,
   free_space text,
+  commitment_duration text not null,
   cv_path text not null,
   cv_url text not null,
-  -- Company & Job Preferences (serialized as "1-item\n2-item\n3-item")
-  companies_order text not null,
-  job_titles_order text not null,
+  -- Company & Job Ratings (JSONB format: {"Apple": 5, "Microsoft": 3, ...})
+  companies_ratings jsonb not null,
+  job_ratings jsonb not null,
   constraint registrations_uni_id_unique unique (uni_id)
 );
 

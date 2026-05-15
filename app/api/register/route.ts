@@ -15,41 +15,92 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     
     // Step 1: Personal Information
-    const name_ar = formData.get("name_ar")?.toString() || "";
-    const name_en = formData.get("name_en")?.toString() || "";
-    const birthdate = formData.get("birthdate")?.toString() || "";
+    const full_name = formData.get("full_name")?.toString() || "";
     const gender = formData.get("gender")?.toString() || "";
     const email = formData.get("email")?.toString() || "";
     const phone_number = formData.get("phone_number")?.toString() || "";
 
     // Step 2: Academic Information
     const university = formData.get("university")?.toString() || "";
+    const university_custom = formData.get("university_custom")?.toString() || "";
     const major = formData.get("major")?.toString() || "";
+    const major_custom = formData.get("major_custom")?.toString() || "";
     const uni_id = formData.get("uni_id")?.toString() || "";
     const graduation_year = formData.get("graduation_year")?.toString() || "";
     const linkedin = formData.get("linkedin")?.toString() || "";
 
-    // Step 3: Concerns & Preferences
-    const interests = formData.get("interests")?.toString() || "";
-    const skills_projects = formData.get("skills_projects")?.toString() || "";
-    const experience_volunteer = formData.get("experience_volunteer")?.toString() || "";
-    const free_space = formData.get("free_space")?.toString() || "";
+    // Step 3: Skills & Experience
+    const skillsRaw = formData.get("skills")?.toString() || "[]";
+    const skills = JSON.parse(skillsRaw) as string[];
+    const experience_projects = formData.get("experience_projects")?.toString() || "";
+    const commitment_duration = formData.get("commitment_duration")?.toString() || "";
 
-    // Step 4: Company & Job Ordering
-    const companies_order = formData.get("companies_order")?.toString() || "";
-    const job_titles_order = formData.get("job_titles_order")?.toString() || "";
+    // Step 4: Company & Job Ratings
+    const companiesRatingsRaw = formData.get("companies_ratings")?.toString() || "{}";
+    const jobRatingsRaw = formData.get("job_ratings")?.toString() || "{}";
+    const companies_ratings = JSON.parse(companiesRatingsRaw) as Record<string, number>;
+    const job_ratings = JSON.parse(jobRatingsRaw) as Record<string, number>;
 
     // CV File
     const cvFile = formData.get("cv_file") as File | null;
 
     // Validate required fields
     if (
-      !name_ar || !name_en || !birthdate || !gender || !email || !phone_number ||
-      !university || !major || !uni_id || !graduation_year || !linkedin ||
-      !interests || !skills_projects || !experience_volunteer ||
-      !companies_order || !job_titles_order || !cvFile
+      !full_name || !gender || !email || !phone_number ||
+      !university || !major || !uni_id || !graduation_year ||
+      !experience_projects || !commitment_duration ||
+      !cvFile
     ) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+    }
+
+    // Validate phone format (+966 followed by 9-10 digits)
+    const phoneRegex = /^\+966\d{9,10}$/;
+    if (!phoneRegex.test(phone_number)) {
+      return NextResponse.json({ error: "Invalid phone number format." }, { status: 400 });
+    }
+
+    // Validate all companies are rated (8 companies expected)
+    const expectedCompanies = [
+      "Apple", "Microsoft", "Google", "Amazon", 
+      "Meta", "Tesla", "Samsung", "IBM"
+    ];
+    for (const company of expectedCompanies) {
+      if (!companies_ratings[company] || companies_ratings[company] < 1 || companies_ratings[company] > 5) {
+        return NextResponse.json({ 
+          error: `Company ${company} must be rated 1-5 stars.` 
+        }, { status: 400 });
+      }
+    }
+
+    // Validate all jobs are rated (8 jobs expected)
+    const expectedJobs = [
+      "Software Engineer", "Product Manager", "Data Scientist", "UX Designer",
+      "DevOps Engineer", "QA Engineer", "Business Analyst", "Solutions Architect"
+    ];
+    for (const job of expectedJobs) {
+      if (!job_ratings[job] || job_ratings[job] < 1 || job_ratings[job] > 5) {
+        return NextResponse.json({ 
+          error: `Job ${job} must be rated 1-5 stars.` 
+        }, { status: 400 });
+      }
+    }
+
+    // Validate skills array (max 7)
+    if (!Array.isArray(skills) || skills.length === 0 || skills.length > 7) {
+      return NextResponse.json({ error: "Please add 1-7 skills." }, { status: 400 });
+    }
+
+    // Validate File Size (10MB limit)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+    if (cvFile.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: "File exceeds 10MB limit." }, { status: 400 });
+    }
+
+    // Validate File Type (Strict MIME checking)
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+    if (!allowedTypes.includes(cvFile.type)) {
+      return NextResponse.json({ error: "Invalid file type. Only PDF, JPG, and PNG are allowed." }, { status: 400 });
     }
 
     // Upload CV file
@@ -71,29 +122,30 @@ export async function POST(req: NextRequest) {
     const { data: publicData } = supabaseAdmin.storage.from(CV_BUCKET).getPublicUrl(filePath);
     const cv_url = publicData.publicUrl;
 
+    // Determine final university and major (use custom if provided)
+    const finalUniversity = university === "Other" ? university_custom : university;
+    const finalMajor = major === "Other" ? major_custom : major;
+
     // Insert into database
     const { data: insertedRow, error: insertError } = await supabaseAdmin
       .from("registrations")
       .insert({
-        name_ar,
-        name_en,
-        birthdate,
+        full_name,
         gender,
         email,
         phone_number,
-        university,
-        major,
+        university: finalUniversity,
+        major: finalMajor,
         uni_id,
         graduation_year,
         linkedin,
-        interests,
-        skills_projects,
-        experience_volunteer,
-        free_space,
+        skills,
+        experience_projects,
+        commitment_duration,
         cv_path: filePath,
         cv_url,
-        companies_order,
-        job_titles_order,
+        companies_ratings,
+        job_ratings,
       })
       .select("id, created_at")
       .single();
