@@ -9,18 +9,14 @@ const stories = [
     nameKey: "story1Name",
     roleKey: "story1Role",
     textKey: "story1Text",
-    initials: "NA",
     bgClass: "bg-gradient-to-br from-gray-200 to-gray-300",
-    initialsColor: "text-gray-500",
     delay: "150ms",
   },
   {
     nameKey: "story2Name",
     roleKey: "story2Role",
     textKey: "story2Text",
-    initials: "AO",
     bgClass: "bg-gradient-to-br from-brand/20 to-brand/10",
-    initialsColor: "text-brand",
     delay: "300ms",
   },
 ];
@@ -68,17 +64,11 @@ export default function Testimonials() {
               className="bg-white p-10 lg:p-12 rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative group hover:-translate-y-2 transition duration-500 reveal"
               style={{ transitionDelay: story.delay }}
             >
-              <div className="absolute top-10 end-10 text-brand/10 group-hover:text-brand/20 transition duration-300">
-                <Quote className={`w-20 h-20 ${lang === "ar" ? "" : "rotate-180"}`} />
+              <div className="absolute top-10 end-10 text-brand/5 group-hover:text-brand/20 transition duration-300">
+                <Quote className={`w-10 h-10 ${lang === "ar" ? "" : "rotate-180"}`} />
               </div>
               <div className="flex items-center gap-5 mb-10 relative z-10">
-                <div className="w-20 h-20 bg-gray-100 rounded-full overflow-hidden border-4 border-white shadow-lg shrink-0">
-                  <div className={`w-full h-full ${story.bgClass} flex items-center justify-center`}>
-                    <span className={`text-xl font-bold ${story.initialsColor}`}>
-                      {story.initials}
-                    </span>
-                  </div>
-                </div>
+                
                 <div>
                   <h4 className="font-extrabold text-gray-900 text-xl">{t(story.nameKey)}</h4>
                   <p className="text-brand font-bold text-sm mt-1">{t(story.roleKey)}</p>

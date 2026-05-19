@@ -3,6 +3,8 @@ import About from "@/components/About";
 import Purpose from "@/components/Purpose";
 import Testimonials from "@/components/Testimonials";
 import Partners from "@/components/Partners";
+import CallToAction from "@/components/CallToAction";
+import Footer from "@/components/Footer";
 
 export default function Home() {
   return (
@@ -12,6 +14,8 @@ export default function Home() {
       <Purpose />
       <Testimonials />
       <Partners />
+      <CallToAction />
+      <Footer />
     </main>
   );
 }

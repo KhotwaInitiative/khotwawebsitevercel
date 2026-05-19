@@ -14,8 +14,7 @@ create table if not exists public.registrations (
   linkedin text,
   -- Concerns & Preferences
   skills text[] not null,
-  experience_projects text not null,
-  free_space text,
+  experience_projects text,
   commitment_duration text not null,
   cv_path text not null,
   cv_url text not null,

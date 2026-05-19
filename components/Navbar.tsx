@@ -44,9 +44,9 @@ export default function Navbar() {
               <Image
                 src="/image/khotwa-logo.png"
                 alt="Khotwa Logo"
-                width={96}
-                height={96}
-                className="h-16 md:h-24 w-auto object-contain transition-all mix-blend-multiply drop-shadow-sm hover:scale-105"
+                width={144}
+                height={144}
+                className="h-16 md:h-24 w-auto object-cover transition-all mix-blend-multiply drop-shadow-sm hover:scale-105"
               />
             </Link>
           </div>

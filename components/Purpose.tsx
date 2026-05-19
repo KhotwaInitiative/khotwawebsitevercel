@@ -72,17 +72,17 @@ export default function Purpose() {
           </h3>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mt-20 text-start relative z-10">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mt-20 text-center relative z-10">
           {goals.map((goal) => {
             const Icon = goal.icon;
             return (
               <div
                 key={goal.titleKey}
                 ref={useReveal}
-                className="bg-white/10 backdrop-blur-md p-8 rounded-3xl border border-white/10 hover:bg-white/20 transition duration-300 reveal"
+                className="bg-white/10 backdrop-blur-md p-8 rounded-3xl border border-white/10 hover:bg-white/20 transition duration-300 reveal text-center"
                 style={{ transitionDelay: goal.delay }}
               >
-                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-white mb-6">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-white mb-6 mx-auto">
                   <Icon className="w-7 h-7" />
                 </div>
                 <h4 className="text-xl font-bold text-white mb-3">{t(goal.titleKey)}</h4>

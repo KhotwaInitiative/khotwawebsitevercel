@@ -68,10 +68,6 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center text-gray-500 font-medium gap-4">
           <p>{t("footerRights")}</p>
-          <div className="flex gap-8">
-            <a href="#" className="hover:text-white transition duration-300">{t("footerPrivacy")}</a>
-            <a href="#" className="hover:text-white transition duration-300">{t("footerTerms")}</a>
-          </div>
         </div>
       </div>
     </footer>

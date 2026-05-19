@@ -10,16 +10,22 @@ const partnerLogos = [
 ];
 
 const bgColors = [
-  "bg-blue-50", "bg-yellow-50", "bg-emerald-50", "bg-purple-50",
-  "bg-red-50", "bg-indigo-50", "bg-teal-50",
+"bg-red-100",        // p1 - Telenoc (Dark Red #8B1538)
+  "bg-blue-100",       // p2 - KABI (Teal/Blue #2B9B9E)
+  "bg-slate-100",      // P3 - Unicode (Dark/Black #1A1A1A)
+  "bg-blue-100",       // p4 - Nitex (Blue #0052CC)
+  "bg-green-100",      // p5 - Golato (Green #22C55E)
+  "bg-purple-100",     // p6 - Eventful Group (Purple #A855F7)
+  "bg-blue-100",       // p7 - Aamar (Navy Blue #1E3A8A)
+  "bg-emerald-100",    // p8 - vrtx (Mint Green #10B981)
+  "bg-teal-100",       // p9 - Entropy (Teal #06B6D4)
+  "bg-blue-100",       // p10 - Manafa (Teal/Blue #2B9B9E)
+  "bg-indigo-100",     // p11 - Railed (Indigo #4F46E5)
+  "bg-purple-100",     // p12 - Mystical Symbol (Purple #A855F7)
+  "bg-red-50",         // p13 - (Light Red backup)
+  "bg-slate-50",       // p14 - (Light Gray backup)
 ];
 
-const sizes = [
-  "w-24 h-24 md:w-32 md:h-32",
-  "w-24 h-24 md:w-36 md:h-36",
-  "w-20 h-20 md:w-28 md:h-28",
-  "w-28 h-28 md:w-40 md:h-40",
-];
 
 const floatClasses = ["animate-float-1", "animate-float-2", "animate-float-3"];
 
@@ -63,22 +69,22 @@ export default function Partners() {
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-x-2 gap-y-12 items-center justify-items-center relative z-10 w-full">
             {partnerLogos.map((logo, i) => {
               const color = bgColors[i % bgColors.length];
-              const size = sizes[i % sizes.length];
+              const size = "w-28 h-28";
               const float = floatClasses[i % floatClasses.length];
-              const margin = i % 2 === 0 ? "mb-8 md:mb-16" : "mt-8 md:mt-16";
+            
 
               return (
                 <div
                   key={logo}
-                  className={`${color} ${size} ${margin} ${float} rounded-full flex items-center justify-center shadow-lg shadow-gray-200/50 hover:!-translate-y-2 transition duration-500 cursor-pointer overflow-hidden p-4 md:p-6 shrink-0 border-4 border-white backdrop-blur-sm relative group`}
+                  className={`bg-white ${size} md:w-36 md:h-36 ${float} rounded-full flex items-center justify-center shadow-lg shadow-gray-200/50 hover:!-translate-y-2 transition duration-500 cursor-pointer overflow-hidden p-4 md:p-6 shrink-0 border-4 border-white backdrop-blur-sm relative group`}
                 >
                   <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition duration-300" />
                   <Image
                     src={`/image/khotwa-partners/${logo}`}
                     alt="Partner"
-                    width={120}
-                    height={120}
-                    className="w-full h-full object-contain mix-blend-multiply drop-shadow-sm relative z-10 transition duration-500 transform group-hover:scale-110"
+                    width={144}
+                    height={144}
+                    className="w-full h-full object-cover mix-blend-multiply drop-shadow-sm relative z-10 transition duration-500 transform group-hover:scale-110"
                   />
                 </div>
               );

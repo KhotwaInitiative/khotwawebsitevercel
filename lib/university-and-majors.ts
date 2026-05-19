@@ -50,12 +50,12 @@ export const PROFESSIONAL_MAJORS: MajorOption[] = [
   // Computer Science & IT Majors
   { en: "Software Engineering", ar: "هندسة البرمجيات", category: "computer" },
   { en: "Computer Science", ar: "علوم الحاسب", category: "computer" },
+  { en: "Computer Engineering", ar: "هندسة الحاسب", category: "computer" },
+  { en: "Information Systems", ar: "نظم المعلومات", category: "computer" },
   { en: "Information Technology", ar: "تقنية المعلومات", category: "computer" },
   { en: "Data Science", ar: "علم البيانات", category: "computer" },
   { en: "Cybersecurity", ar: "الأمن السيبراني", category: "computer" },
   { en: "Artificial Intelligence", ar: "الذكاء الاصطناعي", category: "computer" },
-  { en: "Computer Engineering", ar: "هندسة الحاسب", category: "computer" },
-  { en: "Information Systems", ar: "نظم المعلومات", category: "computer" },
   { en: "Web Development", ar: "تطوير الويب", category: "computer" },
   { en: "Cloud Computing", ar: "الحوسبة السحابية", category: "computer" },
 

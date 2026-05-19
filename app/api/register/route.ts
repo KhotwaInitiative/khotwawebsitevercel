@@ -47,8 +47,7 @@ export async function POST(req: NextRequest) {
     // Validate required fields
     if (
       !full_name || !gender || !email || !phone_number ||
-      !university || !major || !uni_id || !graduation_year ||
-      !experience_projects || !commitment_duration ||
+      !university || !major || !uni_id || !graduation_year || !commitment_duration ||
       !cvFile
     ) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
