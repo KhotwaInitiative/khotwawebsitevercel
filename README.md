@@ -7,7 +7,7 @@ This app uses Supabase only for registration data and CV uploads.
 Create `.env` in `khotwa-next/`:
 
 ```dotenv
-SUPABASE_URL="https://<project-ref>.supabase.co"
+SUPABASE_URL="https://<project-ref>.supabase.co" 
 SUPABASE_KEY="<publishable-anon-key>"
 SUPABASE_SECRET_KEY="<service-role-secret-key>"
 ```
