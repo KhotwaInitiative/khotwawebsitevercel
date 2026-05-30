@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Zap, Star } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
 
 export default function CallToAction() {
-  const { lang, t } = useLanguage();
+  const { lang } = useLanguage();
 
   return (
     <section className="py-20 md:py-32 bg-gradient-to-r from-brand via-brand/90 to-brand/80 relative overflow-hidden">

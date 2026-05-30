@@ -6,21 +6,44 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
 import Image from "next/image";
-import { Lock, CheckCircle, UploadCloud, Star, X } from "lucide-react";
+import { Lock, CheckCircle, UploadCloud, X, Check, ChevronUp, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { SAUDI_UNIVERSITIES, PROFESSIONAL_MAJORS } from "@/lib/university-and-majors";
-import { PROFESSIONAL_SKILLS, getAllSkillsGrouped } from "@/lib/skills";
+import { getAllSkillsGrouped } from "@/lib/skills";
 
 const TOTAL_STEPS = 4;
 
 const COMPANIES_LIST = [
-  "Apple", "Microsoft", "Google", "Amazon", "Meta", "Tesla", "IBM", "Intel",
+  "Qabas",
+  "JNH Systems",
+  "Rize",
+  "هاتف",
+  "ودائع",
+  "vrtx",
+  "Atheer Connectivity",
+  "شركة تطبيق بلورة لتقنية المعلومات",
+  "Aya"
 ];
 
-const JOB_TITLES_LIST = [
-  "Software Engineer", "Product Manager", "Data Scientist", "UX Designer",
-  "DevOps Engineer", "Business Analyst", "QA Engineer", "System Architect",
+const EXPERTISE_FIELDS_LIST = [
+  "Software Engineering",
+  "Mobile App Development",
+  "Data Analysis",
+  "Product Management",
+  "Business Analysis",
+  "DevOps / Cloud Computing",
+  "UI/UX Design",
+  "AI / Computer Vision",
+  "Frontend Development",
+  "Backend Development",
+  "Other"
 ];
+
+interface SelectedField {
+  name: string;
+  score: number;
+  isCustom?: boolean;
+}
 
 // Zod validation schemas
 const phoneRegex = /^\d{9,10}$/;
@@ -41,14 +64,6 @@ const FullSchema = z.object({
   skills: z.array(z.string()).min(1, "Add at least one skill").max(7, "Maximum 7 skills"),
   experience_projects: z.string().optional().or(z.literal("")),
   commitment_duration: z.string().min(1, "Commitment duration is required"),
-  companies_ratings: z.record(z.number().min(1).max(5)).refine(
-    (ratings) => Object.keys(ratings).length === COMPANIES_LIST.length && Object.values(ratings).every(v => v > 0),
-    "Please rate all companies"
-  ),
-  job_ratings: z.record(z.number().min(1).max(5)).refine(
-    (ratings) => Object.keys(ratings).length === JOB_TITLES_LIST.length && Object.values(ratings).every(v => v > 0),
-    "Please rate all jobs"
-  ),
   cv_file: z.instanceof(File).optional(),
 });
 
@@ -70,8 +85,9 @@ export default function RegisterPage() {
   const [skillInput, setSkillInput] = useState("");
   const [skillsDropdownOpen, setSkillsDropdownOpen] = useState(false);
   const [searchSkill, setSearchSkill] = useState("");
-  const [companiesRatings, setCompaniesRatings] = useState<Record<string, number>>({});
-  const [jobRatings, setJobRatings] = useState<Record<string, number>>({});
+  const [companiesOrder, setCompaniesOrder] = useState<string[]>(COMPANIES_LIST);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [selectedFields, setSelectedFields] = useState<SelectedField[]>([]);
 
   const {
     register,
@@ -89,8 +105,6 @@ export default function RegisterPage() {
     mode: "onBlur",
     defaultValues: {
       skills: [],
-      companies_ratings: {},
-      job_ratings: {},
       phone_country: "966",
     },
   });
@@ -118,19 +132,42 @@ export default function RegisterPage() {
       }
       return result;
     } else if (currentStep === 3) {
-      const allCompaniesRated = COMPANIES_LIST.every((c) => companiesRatings[c]);
-      const allJobsRated = JOB_TITLES_LIST.every((j) => jobRatings[j]);
-
-      if (!allCompaniesRated || !allJobsRated) {
+      if (companiesOrder.length !== COMPANIES_LIST.length) {
         setShowError(true);
-        setErrorTitle(lang === "ar" ? "تقييم مطلوب" : "Ratings Required");
+        setErrorTitle(lang === "ar" ? "ترتيب مطلوب" : "Ordering Required");
         setErrorMessage(
           lang === "ar"
-            ? "يرجى تقييم جميع الشركات والوظائف"
-            : "Please rate all companies and jobs"
+            ? "يرجى ترتيب جميع الشركات"
+            : "Please order all companies"
         );
         return false;
       }
+
+      if (selectedFields.length === 0) {
+        setShowError(true);
+        setErrorTitle(lang === "ar" ? "مجالات الخبرة مطلوبة" : "Expertise Fields Required");
+        setErrorMessage(
+          lang === "ar"
+            ? "يرجى اختيار مجال خبرة واحد على الأقل (بحد أقصى 2)"
+            : "Please select at least one expertise field (maximum 2)"
+        );
+        return false;
+      }
+
+      const hasInvalidCustomField = selectedFields.some(
+        (f) => f.isCustom && !f.name.trim()
+      );
+      if (hasInvalidCustomField) {
+        setShowError(true);
+        setErrorTitle(lang === "ar" ? "تحديد المجال مطلوب" : "Expertise Field Name Required");
+        setErrorMessage(
+          lang === "ar"
+            ? "يرجى كتابة اسم مجال الخبرة المخصص"
+            : "Please specify the custom expertise field name"
+        );
+        return false;
+      }
+
       return true;
     }
     return true;
@@ -215,18 +252,78 @@ export default function RegisterPage() {
     if (file) setCvFile(file);
   };
 
-  const setCompanyRating = (company: string, rating: number) => {
-    setCompaniesRatings((prev) => ({
-      ...prev,
-      [company]: prev[company] === rating ? 0 : rating,
-    }));
+  const moveCompany = (index: number, direction: "up" | "down") => {
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= companiesOrder.length) return;
+
+    const updatedList = [...companiesOrder];
+    const temp = updatedList[index];
+    updatedList[index] = updatedList[newIndex];
+    updatedList[newIndex] = temp;
+
+    setCompaniesOrder(updatedList);
   };
 
-  const setJobRating = (job: string, rating: number) => {
-    setJobRatings((prev) => ({
-      ...prev,
-      [job]: prev[job] === rating ? 0 : rating,
-    }));
+  const handleCompanyDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleCompanyDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleCompanyDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const updatedList = [...companiesOrder];
+    const draggedItem = updatedList[draggedIndex];
+    updatedList.splice(draggedIndex, 1);
+    updatedList.splice(index, 0, draggedItem);
+
+    setCompaniesOrder(updatedList);
+    setDraggedIndex(null);
+  };
+
+  const isFieldSelected = (fieldName: string) => {
+    if (fieldName === "Other") {
+      return selectedFields.some((f) => f.isCustom);
+    }
+    return selectedFields.some((f) => f.name === fieldName && !f.isCustom);
+  };
+
+  const toggleField = (fieldName: string) => {
+    const isSelected = isFieldSelected(fieldName);
+    if (isSelected) {
+      setSelectedFields((prev) => {
+        if (fieldName === "Other") {
+          return prev.filter((f) => !f.isCustom);
+        }
+        return prev.filter((f) => !(f.name === fieldName && !f.isCustom));
+      });
+    } else {
+      if (selectedFields.length >= 2) return;
+      setSelectedFields((prev) => {
+        if (fieldName === "Other") {
+          return [...prev, { name: "", score: 5, isCustom: true }];
+        } else {
+          return [...prev, { name: fieldName, score: 5, isCustom: false }];
+        }
+      });
+    }
+  };
+
+  const updateFieldScore = (index: number, newScore: number) => {
+    setSelectedFields((prev) =>
+      prev.map((f, i) => (i === index ? { ...f, score: newScore } : f))
+    );
+  };
+
+  const updateCustomFieldName = (index: number, newName: string) => {
+    setSelectedFields((prev) =>
+      prev.map((f, i) => (i === index ? { ...f, name: newName } : f))
+    );
   };
 
   const handleFormSubmit = handleSubmit(async () => {
@@ -281,8 +378,9 @@ export default function RegisterPage() {
       formData.append("skills", JSON.stringify(data.skills));
       formData.append("experience_projects", data.experience_projects || "");
       formData.append("commitment_duration", data.commitment_duration);
-      formData.append("companies_ratings", JSON.stringify(companiesRatings));
-      formData.append("job_ratings", JSON.stringify(jobRatings));
+      const formattedCompaniesOrder = companiesOrder.map((name, index) => `${index + 1}-${name.toLowerCase()}`);
+      formData.append("companies_ratings", JSON.stringify(formattedCompaniesOrder));
+      formData.append("expertise_fields", JSON.stringify(selectedFields));
       formData.append("cv_file", cvFile!);
 
       const response = await fetch("/api/register", {
@@ -421,6 +519,23 @@ export default function RegisterPage() {
               <div>
                 <p className="text-xs text-gray-500 font-semibold">{lang === "ar" ? "البريد" : "Email"}</p>
                 <p className="text-gray-800 font-semibold break-all">{getValues("email")}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-semibold">{lang === "ar" ? "مجالات الخبرة" : "Expertise Fields"}</p>
+                <div className="space-y-1 mt-1">
+                  {selectedFields.map((field, idx) => (
+                    <div key={idx} className="flex justify-between text-sm text-gray-800 font-semibold">
+                      <span>{field.name || (lang === "ar" ? "مخصص" : "Custom")}</span>
+                      <span className="text-brand">({field.score}/10)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-semibold">{lang === "ar" ? "ترتيب الشركات (المفضلة أولاً)" : "Companies Order (Fav First)"}</p>
+                <p className="text-gray-800 font-semibold text-sm break-words">
+                  {companiesOrder.slice(0, 3).join(" > ")}...
+                </p>
               </div>
             </div>
             <div className="flex gap-3">
@@ -909,61 +1024,131 @@ export default function RegisterPage() {
                 <div className="space-y-8">
                   {/* Companies */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">{t("regCompanies")}</h3>
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                      {lang === "ar" ? "رتب الشركات الشريكة (اسحب وأفلت أو استخدم الأسهم للترتيب من المفضلة إلى الأقل تفضيلاً)" : "Order Partner Companies (Drag & drop or use arrows to order from favorite to least favorite)"}
+                    </h3>
                     <div className="space-y-3">
-                      {COMPANIES_LIST.map((company) => (
-                        <div key={company} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-brand/50 transition">
-                          <span className="font-semibold text-gray-800">{company}</span>
-                          <div className="flex gap-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <button
-                                key={star}
-                                type="button"
-                                onClick={() => setCompanyRating(company, star)}
-                                className="transition hover:scale-110"
-                              >
-                                <Star
-                                  className={`w-6 h-6 ${
-                                    companiesRatings[company] >= star
-                                      ? "fill-brand text-brand"
-                                      : "text-gray-300"
-                                  }`}
-                                />
-                              </button>
-                            ))}
+                      {companiesOrder.map((company, index) => (
+                        <div
+                          key={company}
+                          draggable
+                          onDragStart={(e) => handleCompanyDragStart(e, index)}
+                          onDragOver={handleCompanyDragOver}
+                          onDrop={(e) => handleCompanyDrop(e, index)}
+                          className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-brand/50 transition cursor-grab active:cursor-grabbing select-none"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 flex items-center justify-center bg-brand text-white font-bold rounded-full text-sm">
+                              {index + 1}
+                            </span>
+                            <span className="font-semibold text-gray-800">{company}</span>
+                          </div>
+                          <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              disabled={index === 0}
+                              onClick={() => moveCompany(index, "up")}
+                              className="p-2 bg-white hover:bg-gray-100 rounded-lg border border-gray-200 disabled:opacity-30 disabled:pointer-events-none transition text-gray-600"
+                              title="Move Up"
+                            >
+                              <ChevronUp className="w-5 h-5" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={index === companiesOrder.length - 1}
+                              onClick={() => moveCompany(index, "down")}
+                              className="p-2 bg-white hover:bg-gray-100 rounded-lg border border-gray-200 disabled:opacity-30 disabled:pointer-events-none transition text-gray-600"
+                              title="Move Down"
+                            >
+                              <ChevronDown className="w-5 h-5" />
+                            </button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Job Titles */}
+                  {/* Expertise Fields */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">{t("regJobTitles")}</h3>
-                    <div className="space-y-3">
-                      {JOB_TITLES_LIST.map((job) => (
-                        <div key={job} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-brand/50 transition">
-                          <span className="font-semibold text-gray-800">{job}</span>
-                          <div className="flex gap-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <button
-                                key={star}
-                                type="button"
-                                onClick={() => setJobRating(job, star)}
-                                className="transition hover:scale-110"
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                      {lang === "ar" ? "مجالات الخبرة (اختر حتى 2)" : "Expertise Fields (Select up to 2)"}
+                    </h3>
+                    <div className="max-h-[500px] overflow-y-auto pr-2 space-y-4">
+                      {EXPERTISE_FIELDS_LIST.map((field) => {
+                        const selectedIndex = selectedFields.findIndex((f) =>
+                          field === "Other" ? f.isCustom : f.name === field && !f.isCustom
+                        );
+                        const isSelected = selectedIndex !== -1;
+                        const isLockout = selectedFields.length >= 2 && !isSelected;
+
+                        return (
+                          <div
+                            key={field}
+                            className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                              isSelected
+                                ? "border-brand bg-brand/5"
+                                : isLockout
+                                ? "border-gray-200 bg-gray-100 opacity-50 cursor-not-allowed"
+                                : "border-gray-200 bg-gray-50 hover:border-brand/50 cursor-pointer"
+                            }`}
+                            onClick={() => {
+                              if (isLockout) return;
+                              toggleField(field);
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={`font-semibold ${isLockout ? "text-gray-400" : "text-gray-800"}`}>
+                                {field === "Other" && lang === "ar" ? "أخرى" : field}
+                              </span>
+                              <div
+                                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                                  isSelected ? "border-brand bg-brand text-white" : "border-gray-300"
+                                }`}
                               >
-                                <Star
-                                  className={`w-6 h-6 ${
-                                    jobRatings[job] >= star
-                                      ? "fill-brand text-brand"
-                                      : "text-gray-300"
-                                  }`}
-                                />
-                              </button>
-                            ))}
+                                {isSelected && <Check className="w-4 h-4" />}
+                              </div>
+                            </div>
+
+                            {isSelected && (
+                              <div className="mt-4 pt-4 border-t border-brand/20 space-y-4" onClick={(e) => e.stopPropagation()}>
+                                {field === "Other" && (
+                                  <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-2">
+                                      {lang === "ar" ? "حدد مجال الخبرة" : "Specify Expertise Field"}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      placeholder={lang === "ar" ? "أدخل مجال خبرتك" : "Enter your expertise field"}
+                                      value={selectedFields[selectedIndex].name}
+                                      onChange={(e) => updateCustomFieldName(selectedIndex, e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand transition text-gray-800 bg-white"
+                                    />
+                                  </div>
+                                )}
+
+                                <div>
+                                  <div className="flex justify-between text-xs text-gray-500 font-semibold mb-2">
+                                    <span>{lang === "ar" ? "مستوى الإتقان:" : "Proficiency Level:"}</span>
+                                    <span className="text-brand font-bold">{selectedFields[selectedIndex].score}/10</span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min="1"
+                                    max="10"
+                                    value={selectedFields[selectedIndex].score}
+                                    onChange={(e) => updateFieldScore(selectedIndex, parseInt(e.target.value))}
+                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-brand"
+                                  />
+                                  <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                                    <span>{lang === "ar" ? "مبتدئ" : "Beginner (1)"}</span>
+                                    <span>{lang === "ar" ? "خبير" : "Expert (10)"}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

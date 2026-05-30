@@ -35,11 +35,10 @@ export async function POST(req: NextRequest) {
     const experience_projects = formData.get("experience_projects")?.toString() || "";
     const commitment_duration = formData.get("commitment_duration")?.toString() || "";
 
-    // Step 4: Company & Job Ratings
-    const companiesRatingsRaw = formData.get("companies_ratings")?.toString() || "{}";
-    const jobRatingsRaw = formData.get("job_ratings")?.toString() || "{}";
-    const companies_ratings = JSON.parse(companiesRatingsRaw) as Record<string, number>;
-    const job_ratings = JSON.parse(jobRatingsRaw) as Record<string, number>;
+    // Step 4: Company & Expertise Fields
+    const companiesRatingsRaw = formData.get("companies_ratings")?.toString() || "[]";
+    const expertise_fields = formData.get("expertise_fields")?.toString() || "[]";
+    const companies_ratings = JSON.parse(companiesRatingsRaw) as string[];
 
     // CV File
     const cvFile = formData.get("cv_file") as File | null;
@@ -48,6 +47,7 @@ export async function POST(req: NextRequest) {
     if (
       !full_name || !gender || !email || !phone_number ||
       !university || !major || !uni_id || !graduation_year || !commitment_duration ||
+      !expertise_fields || expertise_fields === "[]" ||
       !cvFile
     ) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
@@ -59,29 +59,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid phone number format." }, { status: 400 });
     }
 
-    // Validate all companies are rated (8 companies expected)
-    const expectedCompanies = [
-      "Apple", "Microsoft", "Google", "Amazon", 
-      "Meta", "Tesla", "IBM", "Intel"
+    // Validate all companies are ordered (9 companies expected)
+    const expectedCompaniesLower = [
+      "qabas",
+      "jnh systems",
+      "rize",
+      "هاتف",
+      "ودائع",
+      "vrtx",
+      "atheer connectivity",
+      "شركة تطبيق بلورة لتقنية المعلومات",
+      "aya"
     ];
-    for (const company of expectedCompanies) {
-      if (!companies_ratings[company] || companies_ratings[company] < 1 || companies_ratings[company] > 5) {
-        return NextResponse.json({ 
-          error: `Company ${company} must be rated 1-5 stars.` 
-        }, { status: 400 });
-      }
+
+    if (!Array.isArray(companies_ratings) || companies_ratings.length !== 9) {
+      return NextResponse.json({ error: "Invalid companies order list." }, { status: 400 });
     }
 
-    // Validate all jobs are rated (8 jobs expected)
-    const expectedJobs = [
-      "Software Engineer", "Product Manager", "Data Scientist", "UX Designer",
-      "DevOps Engineer", "Business Analyst", "QA Engineer", "System Architect"
-    ];
-    for (const job of expectedJobs) {
-      if (!job_ratings[job] || job_ratings[job] < 1 || job_ratings[job] > 5) {
-        return NextResponse.json({ 
-          error: `Job ${job} must be rated 1-5 stars.` 
-        }, { status: 400 });
+    for (let i = 0; i < 9; i++) {
+      const item = companies_ratings[i];
+      const prefix = `${i + 1}-`;
+      if (!item || !item.startsWith(prefix)) {
+        return NextResponse.json({ error: `Invalid order format at rank ${i + 1}.` }, { status: 400 });
+      }
+      const companyName = item.substring(prefix.length).toLowerCase();
+      if (!expectedCompaniesLower.includes(companyName)) {
+        return NextResponse.json({ error: `Unknown company: ${companyName}` }, { status: 400 });
       }
     }
 
@@ -144,7 +147,7 @@ export async function POST(req: NextRequest) {
         cv_path: filePath,
         cv_url,
         companies_ratings,
-        job_ratings,
+        expertise_fields,
       })
       .select("id, created_at")
       .single();

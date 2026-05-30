@@ -9,24 +9,6 @@ const partnerLogos = [
   "p8.jpg", "p9.png", "p10.jpg", "p11.jpg", "p12.jpg", "p13.jpg", "p14.webp",
 ];
 
-const bgColors = [
-"bg-red-100",        // p1 - Telenoc (Dark Red #8B1538)
-  "bg-blue-100",       // p2 - KABI (Teal/Blue #2B9B9E)
-  "bg-slate-100",      // P3 - Unicode (Dark/Black #1A1A1A)
-  "bg-blue-100",       // p4 - Nitex (Blue #0052CC)
-  "bg-green-100",      // p5 - Golato (Green #22C55E)
-  "bg-purple-100",     // p6 - Eventful Group (Purple #A855F7)
-  "bg-blue-100",       // p7 - Aamar (Navy Blue #1E3A8A)
-  "bg-emerald-100",    // p8 - vrtx (Mint Green #10B981)
-  "bg-teal-100",       // p9 - Entropy (Teal #06B6D4)
-  "bg-blue-100",       // p10 - Manafa (Teal/Blue #2B9B9E)
-  "bg-indigo-100",     // p11 - Railed (Indigo #4F46E5)
-  "bg-purple-100",     // p12 - Mystical Symbol (Purple #A855F7)
-  "bg-red-50",         // p13 - (Light Red backup)
-  "bg-slate-50",       // p14 - (Light Gray backup)
-];
-
-
 const floatClasses = ["animate-float-1", "animate-float-2", "animate-float-3"];
 
 export default function Partners() {
@@ -68,7 +50,6 @@ export default function Partners() {
         <div ref={useReveal} className="relative w-full overflow-visible py-16 reveal" style={{ transitionDelay: "200ms" }}>
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-x-2 gap-y-12 items-center justify-items-center relative z-10 w-full">
             {partnerLogos.map((logo, i) => {
-              const color = bgColors[i % bgColors.length];
               const size = "w-28 h-28";
               const float = floatClasses[i % floatClasses.length];
             
