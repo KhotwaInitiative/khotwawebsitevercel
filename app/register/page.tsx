@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
 import Image from "next/image";
-import { Lock, CheckCircle, UploadCloud, X, Check, ChevronUp, ChevronDown } from "lucide-react";
+import { Lock, CheckCircle, UploadCloud, X, Check, ChevronUp, ChevronDown, ArrowLeft, ArrowRight } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { SAUDI_UNIVERSITIES, PROFESSIONAL_MAJORS } from "@/lib/university-and-majors";
 import { getAllSkillsGrouped } from "@/lib/skills";
@@ -46,25 +46,43 @@ interface SelectedField {
 }
 
 // Zod validation schemas
-const phoneRegex = /^\d{9,10}$/;
+const phoneRegex = /^05\d{8}$/;
 
 const FullSchema = z.object({
-  full_name: z.string().min(2, "Full name is required"),
-  gender: z.enum(["male", "female"]),
-  email: z.string().email("Invalid email format"),
-  phone_country: z.string().default("966"),
-  phone_number: z.string().regex(phoneRegex, "Phone must be 9 digits"),
-  university: z.string().min(1, "University is required"),
+  full_name: z.string().min(2, "regErrorFullNameRequired"),
+  gender: z.enum(["male", "female"], {
+    required_error: "regErrorGenderRequired",
+    invalid_type_error: "regErrorGenderRequired",
+  }),
+  email: z.string().min(1, "regErrorEmailRequired").email("regErrorEmailInvalid"),
+  phone_number: z.string().min(1, "regErrorPhoneRequired").regex(phoneRegex, "regErrorPhoneInvalid"),
+  university: z.string().min(1, "regErrorUniversityRequired"),
   university_other: z.string().default(""),
-  major: z.string().min(1, "Major is required"),
+  major: z.string().min(1, "regErrorMajorRequired"),
   major_other: z.string().default(""),
-  uni_id: z.string().min(1, "University ID is required"),
-  graduation_year: z.string().min(1, "Graduation year is required"),
+  uni_id: z.string().min(1, "regErrorUniIdRequired"),
+  graduation_year: z.string().min(1, "regErrorGraduationYearRequired"),
   linkedin: z.string().default(""),
-  skills: z.array(z.string()).min(1, "Add at least one skill").max(7, "Maximum 7 skills"),
+  skills: z.array(z.string()).min(1, "regErrorSkillsRequired").max(7, "regErrorSkillsMax"),
   experience_projects: z.string().optional().or(z.literal("")),
-  commitment_duration: z.string().min(1, "Commitment duration is required"),
+  commitment_duration: z.string().min(1, "regErrorCommitmentRequired"),
   cv_file: z.instanceof(File).optional(),
+}).superRefine((data, ctx) => {
+  if (data.university === "Other" && !data.university_other.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["university_other"],
+      message: "regErrorUniversityOtherRequired",
+    });
+  }
+
+  if (data.major === "Other" && !data.major_other.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["major_other"],
+      message: "regErrorMajorOtherRequired",
+    });
+  }
 });
 
 type FormData = z.infer<typeof FullSchema>;
@@ -72,6 +90,7 @@ type FormData = z.infer<typeof FullSchema>;
 export default function RegisterPage() {
   const { lang, t, toggleLang } = useLanguage();
   const isRegistrationOpen = true;
+  const getErrorText = (message?: string) => (message ? t(message) : "");
 
   const [currentStep, setCurrentStep] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -105,7 +124,6 @@ export default function RegisterPage() {
     mode: "onBlur",
     defaultValues: {
       skills: [],
-      phone_country: "966",
     },
   });
 
@@ -115,7 +133,7 @@ export default function RegisterPage() {
 
   const validateStep = async (): Promise<boolean> => {
     if (currentStep === 0) {
-      return trigger(["full_name", "gender", "email", "phone_country", "phone_number"]);
+      return trigger(["full_name", "gender", "email", "phone_number"]);
     } else if (currentStep === 1) {
       const fieldsToCheck = ["university", "major", "uni_id", "graduation_year"];
       if (selectedUniversity === "Other") fieldsToCheck.push("university_other");
@@ -187,12 +205,9 @@ export default function RegisterPage() {
   };
 
   const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, "");
-    if (value.startsWith("0")) {
-      value = value.substring(1);
-    }
+    const value = e.target.value.replace(/\D/g, "").slice(0, 10);
     setValue("phone_number", value);
-    if (value.length > 0) clearErrors("phone_number");
+    if (phoneRegex.test(value)) clearErrors("phone_number");
   };
 
   const handleSubmitClick = async () => {
@@ -360,7 +375,6 @@ export default function RegisterPage() {
 
     try {
       const data = getValues();
-      const formattedPhone = `+${data.phone_country}${data.phone_number}`;
       const universityName =
         data.university === "Other" ? data.university_other : data.university;
       const majorName = data.major === "Other" ? data.major_other : data.major;
@@ -369,7 +383,7 @@ export default function RegisterPage() {
       formData.append("full_name", data.full_name);
       formData.append("gender", data.gender);
       formData.append("email", data.email);
-      formData.append("phone_number", formattedPhone);
+      formData.append("phone_number", data.phone_number);
       formData.append("university", universityName || "");
       formData.append("major", majorName || "");
       formData.append("uni_id", data.uni_id);
@@ -567,6 +581,24 @@ export default function RegisterPage() {
 
       <div className="relative z-10 w-full max-w-[580px]">
         <header className="flex justify-center items-center relative mb-12">
+          {currentStep > 0 ? (
+            <button
+              type="button"
+              onClick={goPrev}
+              aria-label={lang === "ar" ? "رجوع" : "Back"}
+              className="absolute start-0 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full p-2 text-gray-700 hover:text-brand transition z-10"
+            >
+              {lang === "ar" ? <ArrowRight className="w-5 h-5" /> : <ArrowLeft className="w-5 h-5" />}
+            </button>
+          ) : (
+            <Link
+              href="/"
+              aria-label={lang === "ar" ? "رجوع" : "Back"}
+              className="absolute start-0 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full p-2 text-gray-700 hover:text-brand transition z-10"
+            >
+              {lang === "ar" ? <ArrowRight className="w-5 h-5" /> : <ArrowLeft className="w-5 h-5" />}
+            </Link>
+          )}
           <Link href="/" className="inline-block z-10 hover:scale-105 transition-transform">
             <Image
               src="/image/khotwa-logo.png"
@@ -579,7 +611,7 @@ export default function RegisterPage() {
           <button
             onClick={toggleLang}
             type="button"
-            className="absolute start-0 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full px-4 py-2 text-sm font-semibold text-gray-800 hover:text-brand transition z-10"
+            className="absolute end-0 top-1/2 -translate-y-1/2 bg-white/80 backdrop-blur-md border border-gray-200 rounded-full px-4 py-2 text-sm font-semibold text-gray-800 hover:text-brand transition z-10"
           >
             {lang === "ar" ? "English" : "عربي"}
           </button>
@@ -609,6 +641,7 @@ export default function RegisterPage() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regFullName")}
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
                     <input
                       type="text"
@@ -618,12 +651,13 @@ export default function RegisterPage() {
                         errors.full_name ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
                       }`}
                     />
-                    {errors.full_name && <p className="text-red-600 text-sm mt-1">{errors.full_name.message}</p>}
+                    {errors.full_name && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.full_name.message)}</p>}
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-4">
                       {t("regGender")}
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
                     <div className="flex gap-8">
                       {[
@@ -646,12 +680,13 @@ export default function RegisterPage() {
                         </label>
                       ))}
                     </div>
-                    {errors.gender && <p className="text-red-600 text-sm mt-2">{errors.gender.message}</p>}
+                    {errors.gender && <p className="text-red-600 text-sm mt-2">{getErrorText(errors.gender.message)}</p>}
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regEmail")}
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
                     <input
                       type="email"
@@ -662,37 +697,26 @@ export default function RegisterPage() {
                       }`}
                       dir="ltr"
                     />
-                    {errors.email && <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>}
+                    {errors.email && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.email.message)}</p>}
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regPhoneNumber")}
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
-                    <div className="flex gap-2">
-                      <div className="w-20">
-                        <select
-                          {...register("phone_country")}
-                          className="w-full px-2 py-3.5 text-lg border-2 border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-brand focus:ring-4 focus:ring-brand/10 outline-none transition"
-                        >
-                          <option value="966">+966</option>
-                        </select>
-                      </div>
-                      <div className="flex-1">
-                        <input
-                          type="tel"
-                          placeholder={t("regPhoneNumberFieldPlaceholder")}
-                          {...register("phone_number")}
-                          onChange={handlePhoneChange}
-                          maxLength={10}
-                          className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
-                            errors.phone_number ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
-                          }`}
-                          dir="ltr"
-                        />
-                      </div>
-                    </div>
-                    {errors.phone_number && <p className="text-red-600 text-sm mt-1">{errors.phone_number.message}</p>}
+                    <input
+                      type="tel"
+                      placeholder={t("regPhoneNumberFieldPlaceholder")}
+                      {...register("phone_number")}
+                      onChange={handlePhoneChange}
+                      maxLength={10}
+                      className={`w-full px-4 py-3.5 text-lg border-2 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 outline-none transition ${
+                        errors.phone_number ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
+                      }`}
+                      dir="ltr"
+                    />
+                    {errors.phone_number && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.phone_number.message)}</p>}
                   </div>
                 </div>
               </div>
@@ -708,6 +732,7 @@ export default function RegisterPage() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regUniversity")}
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
                     <select
                       {...register("university")}
@@ -715,17 +740,21 @@ export default function RegisterPage() {
                         errors.university ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
                       }`}
                     >
-                      <option value="">Select University...</option>
+                      <option value="">{t("regSelectUniversity")}</option>
                       {SAUDI_UNIVERSITIES.map((uni) => (
                         <option key={uni.en} value={uni.en}>
                           {lang === "ar" ? uni.ar : uni.en}
                         </option>
                       ))}
                     </select>
-                    {errors.university && <p className="text-red-600 text-sm mt-1">{errors.university.message}</p>}
+                    {errors.university && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.university.message)}</p>}
 
                     {selectedUniversity === "Other" && (
                       <div className="mt-3">
+                        <label className="block text-sm font-semibold text-gray-800 mb-2">
+                          {lang === "ar" ? "اسم جامعتك" : "University name"}
+                          <span className="text-red-500 ms-1">*</span>
+                        </label>
                         <input
                           type="text"
                           placeholder={lang === "ar" ? "اسم جامعتك" : "Enter your university name"}
@@ -734,7 +763,7 @@ export default function RegisterPage() {
                             errors.university_other ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
                           }`}
                         />
-                        {errors.university_other && <p className="text-red-600 text-sm mt-1">{errors.university_other.message}</p>}
+                        {errors.university_other && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.university_other.message)}</p>}
                       </div>
                     )}
                   </div>
@@ -742,6 +771,7 @@ export default function RegisterPage() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regMajor")}
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
                     <select
                       {...register("major")}
@@ -749,17 +779,21 @@ export default function RegisterPage() {
                         errors.major ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
                       }`}
                     >
-                      <option value="">Select Major...</option>
+                      <option value="">{t("regSelectMajor")}</option>
                       {PROFESSIONAL_MAJORS.map((maj) => (
                         <option key={maj.en} value={maj.en}>
                           {lang === "ar" ? maj.ar : maj.en}
                         </option>
                       ))}
                     </select>
-                    {errors.major && <p className="text-red-600 text-sm mt-1">{errors.major.message}</p>}
+                    {errors.major && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.major.message)}</p>}
 
                     {selectedMajor === "Other" && (
                       <div className="mt-3">
+                        <label className="block text-sm font-semibold text-gray-800 mb-2">
+                          {lang === "ar" ? "تخصصك" : "Major"}
+                          <span className="text-red-500 ms-1">*</span>
+                        </label>
                         <input
                           type="text"
                           placeholder={lang === "ar" ? "تخصصك" : "Enter your major"}
@@ -768,7 +802,7 @@ export default function RegisterPage() {
                             errors.major_other ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
                           }`}
                         />
-                        {errors.major_other && <p className="text-red-600 text-sm mt-1">{errors.major_other.message}</p>}
+                        {errors.major_other && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.major_other.message)}</p>}
                       </div>
                     )}
                   </div>
@@ -776,6 +810,7 @@ export default function RegisterPage() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regUniId")}
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
                     <input
                       type="text"
@@ -786,12 +821,13 @@ export default function RegisterPage() {
                       }`}
                       dir="ltr"
                     />
-                    {errors.uni_id && <p className="text-red-600 text-sm mt-1">{errors.uni_id.message}</p>}
+                    {errors.uni_id && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.uni_id.message)}</p>}
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regGraduationYear")}
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
                     <select
                       {...register("graduation_year")}
@@ -799,13 +835,13 @@ export default function RegisterPage() {
                         errors.graduation_year ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
                       }`}
                     >
-                      <option value="">Select Year...</option>
+                      <option value="">{t("regSelectGraduationYear")}</option>
                       <option value="Fresh Graduate">{t("regFreshGraduate")}</option>
                       <option value="2027">{t("regYear2027")}</option>
                       <option value="2028">{t("regYear2028")}</option>
                       <option value="2029">{t("regYear2029")}</option>
                     </select>
-                    {errors.graduation_year && <p className="text-red-600 text-sm mt-1">{errors.graduation_year.message}</p>}
+                    {errors.graduation_year && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.graduation_year.message)}</p>}
                   </div>
 
                   <div>
@@ -821,7 +857,7 @@ export default function RegisterPage() {
                       }`}
                       dir="ltr"
                     />
-                    {errors.linkedin && <p className="text-red-600 text-sm mt-1">{errors.linkedin.message}</p>}
+                    {errors.linkedin && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.linkedin.message)}</p>}
                   </div>
                 </div>
               </div>
@@ -837,6 +873,7 @@ export default function RegisterPage() {
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regSkillsInput")}
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
                     
                     {/* Skills Dropdown Section */}
@@ -950,7 +987,7 @@ export default function RegisterPage() {
                         ))}
                       </div>
                     )}
-                    {errors.skills && <p className="text-red-600 text-sm mt-2">{errors.skills.message}</p>}
+                    {errors.skills && <p className="text-red-600 text-sm mt-2">{getErrorText(errors.skills.message)}</p>}
                   </div>
 
                   <div>
@@ -965,12 +1002,13 @@ export default function RegisterPage() {
                         errors.experience_projects ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
                       }`}
                     />
-                    {errors.experience_projects && <p className="text-red-600 text-sm mt-1">{errors.experience_projects.message}</p>}
+                    {errors.experience_projects && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.experience_projects.message)}</p>}
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-2">
                       {t("regCommitmentDuration")}
+                      <span className="text-red-500 ms-1">*</span>
                     </label>
                     <select
                       {...register("commitment_duration")}
@@ -978,16 +1016,19 @@ export default function RegisterPage() {
                         errors.commitment_duration ? "border-red-400 focus:border-red-400 focus:ring-red-100" : "border-gray-200 focus:border-brand focus:ring-brand/10"
                       }`}
                     >
-                      <option value="">Select Duration...</option>
+                      <option value="">{t("regSelectDuration")}</option>
                       <option value="One week">{t("regCommitment1Week")}</option>
                       <option value="Two weeks">{t("regCommitment2Weeks")}</option>
                       <option value="One month">{t("regCommitment1Month")}</option>
                     </select>
-                    {errors.commitment_duration && <p className="text-red-600 text-sm mt-1">{errors.commitment_duration.message}</p>}
+                    {errors.commitment_duration && <p className="text-red-600 text-sm mt-1">{getErrorText(errors.commitment_duration.message)}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-2">CV Upload</label>
+                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                      {t("regCvUpload")}
+                      <span className="text-red-500 ms-1">*</span>
+                    </label>
                     <div
                       className={`file-drop-area ${dragOver ? "dragover" : ""}`}
                       onDrop={handleDrop}
@@ -999,9 +1040,9 @@ export default function RegisterPage() {
                     >
                       <UploadCloud className="w-12 h-12 text-gray-400 mb-4" />
                       <span className={`text-lg font-semibold mb-2 break-all ${cvFile ? "text-brand" : "text-gray-800"}`}>
-                        {cvFile ? cvFile.name : "Choose a file or drag it here"}
+                        {cvFile ? cvFile.name : t("regFileMsg")}
                       </span>
-                      <span className="text-sm text-gray-400">PDF, JPG, PNG (max 10MB)</span>
+                      <span className="text-sm text-gray-400">{t("regFileFormat")}</span>
                       <input
                         type="file"
                         accept=".pdf,image/jpeg,image/png"
