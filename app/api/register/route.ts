@@ -53,10 +53,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
     }
 
-    // Validate phone format (+966 followed by 9-10 digits)
-    const phoneRegex = /^\+966\d{9,10}$/;
+    // Validate phone format (must start with 05 and be 10 digits)
+    const phoneRegex = /^05\d{8}$/;
     if (!phoneRegex.test(phone_number)) {
-      return NextResponse.json({ error: "Invalid phone number format." }, { status: 400 });
+      return NextResponse.json({ error: "Phone number must start with 05 and be 10 digits." }, { status: 400 });
     }
 
     // Validate all companies are ordered (9 companies expected)
