@@ -75,10 +75,10 @@ export default function Hero() {
   }, []);
 
   const stats = [
-    { icon: Users, num: 200, prefix: "+", labelKey: "stat1Label" },
-    { icon: UserCheck, num: 22, prefix: "+", labelKey: "stat2Label" },
-    { icon: Building2, num: 7, prefix: "+", labelKey: "stat3Label" },
-    { icon: Clock, num: 600, prefix: "+", labelKey: "stat4Label" },
+    { icon: Users, num: 500, prefix: "+", labelKey: "stat1Label" },
+    { icon: UserCheck, num: 35, prefix: "+", labelKey: "stat2Label" },
+    { icon: Building2, num: 16, prefix: "+", labelKey: "stat3Label" },
+    { icon: Clock, num: 950, prefix: "+", labelKey: "stat4Label" },
   ];
 
   return (

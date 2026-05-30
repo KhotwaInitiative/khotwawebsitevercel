@@ -19,12 +19,12 @@ export default function CallToAction() {
             {lang === "ar" ? (
               <>
                 ماذا تنتظر؟ <br />
-                <span className="text-yellow-300">ابدأ تجربتك الآن!</span>
+                <span className="text-rose-100">ابدأ تجربتك الآن!</span>
               </>
             ) : (
               <>
                 What Are You Waiting For? <br />
-                <span className="text-yellow-300">Start Your experience Today!</span>
+                <span className="text-rose-100">Start Your experience Today!</span>
               </>
             )}
           </h2>
