@@ -1,4 +1,4 @@
-# Khotwa Next.js App 
+# Khotwa Next.js App  
 
 This app uses Supabase only for registration data and CV uploads.
 
