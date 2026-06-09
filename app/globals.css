@@ -185,14 +185,6 @@ input[type="radio"]:checked ~ .custom-radio::after {
   to { transform: translateX(100%); } /* Positive translation for RTL */
 }
 
-.testimonials-marquee-track {
-  display: flex;
-  width: max-content;
-  /* Kept your 100s duration */
-  animation: marquee-ltr 100s linear infinite; 
-  will-change: transform;
-}
-
 /* Applies RTL animation when document is in Arabic */
 [dir="rtl"] .testimonials-marquee-track,
 html[dir="rtl"] .testimonials-marquee-track {
