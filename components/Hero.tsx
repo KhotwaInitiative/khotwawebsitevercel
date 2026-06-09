@@ -116,7 +116,7 @@ export default function Hero() {
             <div className="relative rounded-3xl overflow-hidden shadow-2xl shadow-brand/20 border-[6px] border-white transform lg:-rotate-2 hover:rotate-0 transition duration-500 hover:scale-[1.02]">
             <Link href="/">
               <Image
-                src="/image/2.jpeg"
+                src="/image/2.jpg"
                 alt="Students in an office"
                 width={800}
                 height={600}
