@@ -1,0 +1,31 @@
+{
+  "en": [
+    {
+      "name": "Naser Alzughaibi",
+      "role": "Product Manager at D360 Bank",
+      "text": "\"Khotwa changed my life 180 degrees! It gave me an early chance to enter the job market in product management. Through a five-day placement with a startup, I experienced a product manager's real work, and the company later offered me an internship! An incredible opportunity I highly recommend!\""
+    },
+    {
+      "name": "Abdullah Okasha",
+      "role": "Operation Director at eventful",
+      "text": "\"Khotwa Initiative was a major turning point for me. I joined a startup called Eventful at The Garage for a one-week trial, but the inspiring team and environment motivated me to stay. I didn't stop there I continued working with them, growing from an intern to now being the Operations Director. Khotwa wasn't just a test run it was the true first step that opened the door to my career and helped me find my passion.\""
+    }
+  ],
+  "ar": [
+    {
+      "name": "ناصر الزغيبي",
+      "role": "مدير منتج في بنك D360",
+      "text": "\"خطوة غيرت حياتي 180 درجة! منحتني فرصة مبكرة لدخول سوق العمل في إدارة المنتجات. من خلال تجربة لمدة خمسة أيام مع شركة ناشئة، عشت العمل الحقيقي لمدير المنتج، ولاحقاً عرضت عليّ الشركة تدريباً! فرصة رائعة أوصي بها بشدة!\""
+    },
+    {
+      "name": "خالد البقمي" ,
+      "role": "SS",
+      "text": "شاركت في فرصة Job Shadowing مع خطوة بالتعاون مع شركة Entropy، وكانت تجربة مميزة ومثرية. تعرفت من خلالها على طبيعة سوق العمل، وفهمت كيف تشتغل الفرق داخل الشركات، وكيف يتم اتخاذ القرارات والتعامل مع التحديات اليومية. ساعدتني هذه التجربة على معرفة المهارات التي أحتاج أطورها حتى أكون مستعد لسوق العمل، سواء من ناحية المهارات التقنية أو مهارات التواصل والعمل ضمن فريق."
+    },
+    {
+      "name": "عبدالله عكاشة",
+      "role": "مدير العمليات في Eventful",
+      "text": "\"مبادرة خطوة كانت نقطة تحول كبرى بالنسبة لي. انضممت لشركة ناشئة تُدعى Eventful في الكراج لتجربة لمدة أسبوع، ولكن الفريق والبيئة الملهمة شجعتني على البقاء. لم أتوقف هنا، واصلت العمل معهم، وتقدمت من متدرب حتى أصبحت الآن مدير العمليات. خطوة لم تكن مجرد تجربة؛ لقد كانت الخطوة الأولى الحقيقية التي فتحت لي باب مستقبلي المهني وساعدتني في العثور على شغفي.\""
+    }
+  ]
+}

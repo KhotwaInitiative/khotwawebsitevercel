@@ -22,9 +22,15 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Academic Information
     const university = formData.get("university")?.toString() || "";
-    const university_custom = formData.get("university_custom")?.toString() || "";
+    const university_custom =
+      formData.get("university_other")?.toString() ||
+      formData.get("university_custom")?.toString() ||
+      "";
     const major = formData.get("major")?.toString() || "";
-    const major_custom = formData.get("major_custom")?.toString() || "";
+    const major_custom =
+      formData.get("major_other")?.toString() ||
+      formData.get("major_custom")?.toString() ||
+      "";
     const uni_id = formData.get("uni_id")?.toString() || "";
     const graduation_year = formData.get("graduation_year")?.toString() || "";
     const linkedin = formData.get("linkedin")?.toString() || "";
@@ -37,8 +43,9 @@ export async function POST(req: NextRequest) {
 
     // Step 4: Company & Expertise Fields
     const companiesRatingsRaw = formData.get("companies_ratings")?.toString() || "[]";
-    const expertise_fields = formData.get("expertise_fields")?.toString() || "[]";
+    const expertiseFieldsRaw = formData.get("expertise_fields")?.toString() || "[]";
     const companies_ratings = JSON.parse(companiesRatingsRaw) as string[];
+    const expertise_fields = JSON.parse(expertiseFieldsRaw) as unknown[];
 
     // CV File
     const cvFile = formData.get("cv_file") as File | null;
@@ -47,7 +54,7 @@ export async function POST(req: NextRequest) {
     if (
       !full_name || !gender || !email || !phone_number ||
       !university || !major || !uni_id || !graduation_year || !commitment_duration ||
-      !expertise_fields || expertise_fields === "[]" ||
+      !Array.isArray(expertise_fields) || expertise_fields.length === 0 ||
       !cvFile
     ) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
@@ -57,6 +64,26 @@ export async function POST(req: NextRequest) {
     const phoneRegex = /^05\d{8}$/;
     if (!phoneRegex.test(phone_number)) {
       return NextResponse.json({ error: "Phone number must start with 05 and be 10 digits." }, { status: 400 });
+    }
+
+    const { data: existingPhone, error: phoneLookupError } = await supabaseAdmin
+      .from("registrations")
+      .select("id")
+      .eq("phone_number", phone_number)
+      .maybeSingle();
+
+    if (phoneLookupError) {
+      throw new Error(`Failed to check phone number: ${phoneLookupError.message}`);
+    }
+
+    if (existingPhone) {
+      return NextResponse.json(
+        {
+          error: "This phone number is already registered.",
+          code: "PHONE_ALREADY_EXISTS",
+        },
+        { status: 409 }
+      );
     }
 
     // Validate all companies are ordered (9 companies expected)
@@ -154,6 +181,15 @@ export async function POST(req: NextRequest) {
 
     if (insertError) {
       await supabaseAdmin.storage.from(CV_BUCKET).remove([filePath]);
+      if (insertError.code === "23505") {
+        return NextResponse.json(
+          {
+            error: "This phone number is already registered.",
+            code: "PHONE_ALREADY_EXISTS",
+          },
+          { status: 409 }
+        );
+      }
       throw new Error(`Failed to save registration: ${insertError.message}`);
     }
 

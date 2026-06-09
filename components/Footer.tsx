@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Mail } from "lucide-react";
+import { Mail, Linkedin, X } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -23,6 +23,26 @@ export default function Footer() {
           </div>
           <span className="font-medium" dir="ltr">khotwa.scc@gmail.com</span>
         </a>
+        <div className="flex items-center gap-3">
+          <a
+            href="https://www.linkedin.com/company/khotwa-%D8%AE%D8%B7%D9%88%D8%A9"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="LinkedIn"
+            className="w-11 h-11 rounded-full bg-gray-800 flex items-center justify-center text-gray-200 hover:text-white hover:bg-brand transition"
+          >
+            <Linkedin className="w-5 h-5" />
+          </a>
+          <a
+            href="https://x.com/SccKhotwa"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="X"
+            className="w-11 h-11 rounded-full bg-gray-800 flex items-center justify-center text-gray-200 hover:text-white hover:bg-brand transition"
+          >
+            <X className="w-5 h-5" />
+          </a>
+        </div>
       </div>
     </footer>
   );

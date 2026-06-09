@@ -96,11 +96,11 @@ export default function RegisterPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [showError, setShowError] = useState(false);
-  const [errorTitle, setErrorTitle] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [cvFile, setCvFile] = useState<File | null>(null);
+  const [showCvUploadWarning, setShowCvUploadWarning] = useState(false);
+  const [submissionError, setSubmissionError] = useState("");
+  const [isDeclarationChecked, setIsDeclarationChecked] = useState(false);
   const [skillInput, setSkillInput] = useState("");
   const [skillsDropdownOpen, setSkillsDropdownOpen] = useState(false);
   const [searchSkill, setSearchSkill] = useState("");
@@ -141,34 +141,18 @@ export default function RegisterPage() {
       if (watch("linkedin")) fieldsToCheck.push("linkedin");
       return trigger(fieldsToCheck as unknown as (keyof FormData)[]);
     } else if (currentStep === 2) {
-      const result = await trigger(["skills", "experience_projects", "commitment_duration"]);
+      const isStepValid = await trigger(["skills", "experience_projects", "commitment_duration"]);
       if (!cvFile) {
-        setShowError(true);
-        setErrorTitle(lang === "ar" ? "ملف مطلوب" : "File Required");
-        setErrorMessage(lang === "ar" ? "يرجى رفع السيرة الذاتية" : "Please upload your CV");
+        setShowCvUploadWarning(true);
         return false;
       }
-      return result;
+      return isStepValid;
     } else if (currentStep === 3) {
       if (companiesOrder.length !== COMPANIES_LIST.length) {
-        setShowError(true);
-        setErrorTitle(lang === "ar" ? "ترتيب مطلوب" : "Ordering Required");
-        setErrorMessage(
-          lang === "ar"
-            ? "يرجى ترتيب جميع الشركات"
-            : "Please order all companies"
-        );
         return false;
       }
 
       if (selectedFields.length === 0) {
-        setShowError(true);
-        setErrorTitle(lang === "ar" ? "مجالات الخبرة مطلوبة" : "Expertise Fields Required");
-        setErrorMessage(
-          lang === "ar"
-            ? "يرجى اختيار مجال خبرة واحد على الأقل (بحد أقصى 2)"
-            : "Please select at least one expertise field (maximum 2)"
-        );
         return false;
       }
 
@@ -176,13 +160,6 @@ export default function RegisterPage() {
         (f) => f.isCustom && !f.name.trim()
       );
       if (hasInvalidCustomField) {
-        setShowError(true);
-        setErrorTitle(lang === "ar" ? "تحديد المجال مطلوب" : "Expertise Field Name Required");
-        setErrorMessage(
-          lang === "ar"
-            ? "يرجى كتابة اسم مجال الخبرة المخصص"
-            : "Please specify the custom expertise field name"
-        );
         return false;
       }
 
@@ -207,6 +184,7 @@ export default function RegisterPage() {
   const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 10);
     setValue("phone_number", value);
+    setSubmissionError("");
     if (phoneRegex.test(value)) clearErrors("phone_number");
   };
 
@@ -256,6 +234,7 @@ export default function RegisterPage() {
     const file = e.target.files?.[0];
     if (file) {
       setCvFile(file);
+      setShowCvUploadWarning(false);
       clearErrors("cv_file");
     }
   };
@@ -264,7 +243,10 @@ export default function RegisterPage() {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) setCvFile(file);
+    if (file) {
+      setCvFile(file);
+      setShowCvUploadWarning(false);
+    }
   };
 
   const moveCompany = (index: number, direction: "up" | "down") => {
@@ -345,32 +327,25 @@ export default function RegisterPage() {
     if (currentStep !== TOTAL_STEPS - 1) return;
 
     if (!cvFile) {
-      setShowError(true);
-      setErrorTitle(lang === "ar" ? "ملف مطلوب" : "File Required");
-      setErrorMessage(lang === "ar" ? "يرجى رفع السيرة الذاتية" : "Please upload your CV");
-      return;
+      return; // CV warning will be shown inline below
     }
 
     if (cvFile.size > 10 * 1024 * 1024) {
-      setShowError(true);
-      setErrorTitle(lang === "ar" ? "حجم الملف كبير" : "File Too Large");
-      setErrorMessage(lang === "ar" ? "يجب ألا يتجاوز الحجم 10MB" : "File must not exceed 10MB");
-      return;
+      return; // File too large warning (could add validation error)
     }
 
     const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
     if (!allowedTypes.includes(cvFile.type)) {
-      setShowError(true);
-      setErrorTitle(lang === "ar" ? "نوع ملف غير صحيح" : "Invalid File Type");
-      setErrorMessage(lang === "ar" ? "يجب أن يكون PDF أو صورة" : "Must be PDF or image");
-      return;
+      return; // Invalid type warning (could add validation error)
     }
 
+    setSubmissionError("");
+    setIsDeclarationChecked(false);
     setShowConfirmation(true);
   });
 
   const handleConfirmedSubmit = async () => {
-    setShowConfirmation(false);
+    if (!isDeclarationChecked) return;
     setIsSubmitting(true);
 
     try {
@@ -405,18 +380,21 @@ export default function RegisterPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        setErrorTitle(lang === "ar" ? "خطأ" : "Error");
-        setErrorMessage(result.error || (lang === "ar" ? "حدث خطأ" : "An error occurred"));
-        setShowError(true);
+        if (result.code === "PHONE_ALREADY_EXISTS") {
+          setSubmissionError(t("regErrorPhoneAlreadyExists"));
+        } else {
+          setSubmissionError(result.error || (lang === "ar" ? "حدث خطأ أثناء التسجيل" : "An error occurred while registering"));
+        }
         return;
       }
 
+      setSubmissionError("");
+      setIsDeclarationChecked(false);
       setShowSuccess(true);
+      setShowConfirmation(false);
     } catch (error: unknown) {
       console.error("Registration Error:", error);
-      setErrorTitle(lang === "ar" ? "خطأ في الاتصال" : "Connection Error");
-      setErrorMessage(lang === "ar" ? "حدث خطأ أثناء الاتصال" : "A connection error occurred");
-      setShowError(true);
+      setSubmissionError(lang === "ar" ? "حدث خطأ أثناء التسجيل" : "An error occurred while registering");
     } finally {
       setIsSubmitting(false);
     }
@@ -474,37 +452,6 @@ export default function RegisterPage() {
     );
   }
 
-  const ErrorModal = () => (
-    <>
-      {showError && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300"
-          onClick={() => setShowError(false)}
-        />
-      )}
-      {showError && (
-        <div className="fixed inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-xl border border-white/40 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full">
-            <button
-              onClick={() => setShowError(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition text-gray-500"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <h2 className="text-xl font-bold text-gray-900 mb-3">{errorTitle}</h2>
-            <p className="text-gray-700 mb-4">{errorMessage}</p>
-            <button
-              onClick={() => setShowError(false)}
-              className="w-full px-4 py-3 bg-gray-900 text-white font-semibold rounded-full hover:bg-black transition"
-            >
-              {lang === "ar" ? "فهمت" : "Got it"}
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  );
-
   const ConfirmationModal = () => (
     <>
       {showConfirmation && (
@@ -517,7 +464,11 @@ export default function RegisterPage() {
         <div className="fixed inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
           <div className="pointer-events-auto bg-white/95 backdrop-blur-xl border border-white/40 rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full">
             <button
-              onClick={() => setShowConfirmation(false)}
+              onClick={() => {
+                setShowConfirmation(false);
+                setIsDeclarationChecked(false);
+                setSubmissionError("");
+              }}
               className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition text-gray-500"
             >
               <X className="w-5 h-5" />
@@ -552,16 +503,38 @@ export default function RegisterPage() {
                 </p>
               </div>
             </div>
+            <label className="flex items-start gap-3 mb-5 text-sm text-gray-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isDeclarationChecked}
+                onChange={(e) => setIsDeclarationChecked(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+              />
+              <span>
+                {lang === "ar"
+                  ? "أقر بأن جميع المعلومات صحيحة وأنني سألتزم بالمدة التي اخترتها"
+                  : "I admit that all info is correct and I will commit the duration I choosed"}
+              </span>
+            </label>
+            {submissionError && (
+              <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                {submissionError}
+              </p>
+            )}
             <div className="flex gap-3">
               <button
-                onClick={() => setShowConfirmation(false)}
+                onClick={() => {
+                  setShowConfirmation(false);
+                  setIsDeclarationChecked(false);
+                  setSubmissionError("");
+                }}
                 className="flex-1 px-4 py-3 text-gray-600 font-semibold rounded-full border-2 border-gray-200 hover:bg-gray-50 transition"
               >
                 {lang === "ar" ? "إلغاء" : "Cancel"}
               </button>
               <button
                 onClick={handleConfirmedSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !isDeclarationChecked}
                 className="flex-1 px-4 py-3 bg-brand text-white font-semibold rounded-full hover:bg-brand-light transition disabled:opacity-70"
               >
                 {isSubmitting ? (lang === "ar" ? "جاري..." : "Submitting...") : (lang === "ar" ? "تأكيد" : "Confirm")}
@@ -576,7 +549,6 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex flex-col items-center p-4 pt-8 pb-12 relative">
       <div className="animated-bg" />
-      <ErrorModal />
       <ConfirmationModal />
 
       <div className="relative z-10 w-full max-w-[580px]">
@@ -635,7 +607,6 @@ export default function RegisterPage() {
             {currentStep === 0 && (
               <div className="step-card active">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">{t("regNewStep1Title")}</h2>
-                <p className="text-gray-500 text-lg mb-8">{t("regNewStep1Desc")}</p>
 
                 <div className="space-y-5">
                   <div>
@@ -1050,6 +1021,7 @@ export default function RegisterPage() {
                         className="absolute inset-0 opacity-0 cursor-pointer"
                       />
                     </div>
+                    {!cvFile && showCvUploadWarning && <p className="text-red-600 text-sm mt-2">{t("regErrorCVRequired")}</p>}
                   </div>
                 </div>
               </div>
@@ -1060,13 +1032,12 @@ export default function RegisterPage() {
               <div className="step-card active">
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">{t("regNewStep4Title")}</h2>
                 <p className="text-gray-500 text-lg mb-2">{t("regNewStep4Desc")}</p>
-                <p className="text-sm text-amber-600 mb-6">{t("regRateInstruction")}</p>
 
                 <div className="space-y-8">
                   {/* Companies */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                      {lang === "ar" ? "رتب الشركات الشريكة (اسحب وأفلت أو استخدم الأسهم للترتيب من المفضلة إلى الأقل تفضيلاً)" : "Order Partner Companies (Drag & drop or use arrows to order from favorite to least favorite)"}
+                      {lang === "ar" ? "(اسحب وأفلت أو استخدم الأسهم للترتيب)" : "(Drag & drop or use arrows to order)"}
                     </h3>
                     <div className="space-y-3">
                       {companiesOrder.map((company, index) => (

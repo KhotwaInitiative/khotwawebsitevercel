@@ -171,7 +171,56 @@ input[type="radio"]:checked ~ .custom-radio::after {
 .animate-modal-in {
   animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+/* ===== Marquee Animations ===== */
 
+/* English / LTR Layout */
+@keyframes marquee-ltr {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+/* Arabic / RTL Layout */
+@keyframes marquee-rtl {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); } /* Positive translation for RTL */
+}
+
+.testimonials-marquee-track {
+  display: flex;
+  width: max-content;
+  /* Kept your 100s duration */
+  animation: marquee-ltr 100s linear infinite; 
+  will-change: transform;
+}
+
+/* Applies RTL animation when document is in Arabic */
+[dir="rtl"] .testimonials-marquee-track,
+html[dir="rtl"] .testimonials-marquee-track {
+  animation: marquee-rtl 100s linear infinite;
+}
+
+/* --- Your Existing Partner Animations Remain Untouched --- */
+@keyframes partnersMarqueeLeft {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes partnersMarqueeRight {
+  from { transform: translateX(-33.333%); }
+  to { transform: translateX(-66.666%); }
+}
+.partners-marquee-track {
+  display: flex;
+  width: max-content;
+  /* 40s is a good speed for logos, adjust if needed */
+  animation: marquee-ltr 120s linear infinite; 
+  will-change: transform;
+}
+
+[dir="rtl"] .partners-marquee-track,
+html[dir="rtl"] .partners-marquee-track {
+  animation: marquee-rtl 120s linear infinite;
+}
 /* ===== Smooth Transitions for Reordering ===== */
 .transition-all {
   transition-property: all;

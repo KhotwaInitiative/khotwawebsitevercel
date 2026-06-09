@@ -1,42 +1,25 @@
 "use client";
 
-import { useCallback } from "react";
 import { Quote } from "lucide-react";
 import { useLanguage } from "./LanguageProvider";
+import testimonialsData from "../data/testimonials.json";
 
-const stories = [
-  {
-    nameKey: "story1Name",
-    roleKey: "story1Role",
-    textKey: "story1Text",
-    bgClass: "bg-gradient-to-br from-gray-200 to-gray-300",
-    delay: "150ms",
-  },
-  {
-    nameKey: "story2Name",
-    roleKey: "story2Role",
-    textKey: "story2Text",
-    bgClass: "bg-gradient-to-br from-brand/20 to-brand/10",
-    delay: "300ms",
-  },
-];
+type Testimonial = {
+  name: string;
+  role: string;
+  text: string;
+};
 
 export default function Testimonials() {
   const { lang, t } = useLanguage();
+  
+  // Guard against undefined lang on initial render
+  const stories = (testimonialsData[lang as keyof typeof testimonialsData] || []) as Testimonial[];
+  
+  if (!stories.length) return null;
 
-  const useReveal = useCallback((node: HTMLDivElement | null) => {
-    if (!node) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("active");
-          observer.unobserve(entry.target);
-        }
-      },
-      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
-    );
-    observer.observe(node);
-  }, []);
+  // 3 clones is enough for a wide screen; the Double-Track loop handles the rest.
+  const safeStories = [...stories, ...stories, ...stories];
 
   return (
     <section className="py-24 bg-gray-50 relative">
@@ -56,29 +39,53 @@ export default function Testimonials() {
           </h3>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 lg:gap-12 text-start">
-          {stories.map((story) => (
-            <div
-              key={story.nameKey}
-              ref={useReveal}
-              className="bg-white p-10 lg:p-12 rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative group hover:-translate-y-2 transition duration-500 reveal"
-              style={{ transitionDelay: story.delay }}
-            >
-              <div className="absolute top-10 end-10 text-brand/5 group-hover:text-brand/20 transition duration-300">
-                <Quote className={`w-10 h-10 ${lang === "ar" ? "" : "rotate-180"}`} />
-              </div>
-              <div className="flex items-center gap-5 mb-10 relative z-10">
-                
-                <div>
-                  <h4 className="font-extrabold text-gray-900 text-xl">{t(story.nameKey)}</h4>
-                  <p className="text-brand font-bold text-sm mt-1">{t(story.roleKey)}</p>
+        {/* The Double-Track Marquee Wrapper */}
+        <div className="flex overflow-hidden text-start">
+          
+          {/* TRACK 1 */}
+          <div className="testimonials-marquee-track shrink-0">
+            {safeStories.map((story, index) => (
+              <div key={`t1-${story.name}-${index}`} className="w-[min(88vw,34rem)] shrink-0 px-2 sm:px-3">
+                <div className="h-full bg-white p-10 lg:p-12 rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative group hover:-translate-y-2 transition duration-500">
+                  <div className="absolute top-10 end-10 text-brand/5 group-hover:text-brand/20 transition duration-300">
+                    <Quote className={`w-10 h-10 ${lang === "ar" ? "" : "rotate-180"}`} />
+                  </div>
+                  <div className="flex items-center gap-5 mb-10 relative z-10">
+                    <div>
+                      <h4 className="font-extrabold text-gray-900 text-xl">{story.name}</h4>
+                      <p className="text-brand font-bold text-sm mt-1">{story.role}</p>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 leading-relaxed text-lg relative z-10 font-medium">
+                    {story.text}
+                  </p>
                 </div>
               </div>
-              <p className="text-gray-600 leading-relaxed text-lg relative z-10 font-medium">
-                {t(story.textKey)}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {/* TRACK 2 (Identical Clone for seamless looping) */}
+          <div className="testimonials-marquee-track shrink-0" aria-hidden="true">
+            {safeStories.map((story, index) => (
+              <div key={`t2-${story.name}-${index}`} className="w-[min(88vw,34rem)] shrink-0 px-2 sm:px-3">
+                <div className="h-full bg-white p-10 lg:p-12 rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative group hover:-translate-y-2 transition duration-500">
+                  <div className="absolute top-10 end-10 text-brand/5 group-hover:text-brand/20 transition duration-300">
+                    <Quote className={`w-10 h-10 ${lang === "ar" ? "" : "rotate-180"}`} />
+                  </div>
+                  <div className="flex items-center gap-5 mb-10 relative z-10">
+                    <div>
+                      <h4 className="font-extrabold text-gray-900 text-xl">{story.name}</h4>
+                      <p className="text-brand font-bold text-sm mt-1">{story.role}</p>
+                    </div>
+                  </div>
+                  <p className="text-gray-600 leading-relaxed text-lg relative z-10 font-medium">
+                    {story.text}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
       </div>
     </section>
