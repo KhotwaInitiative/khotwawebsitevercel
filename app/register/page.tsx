@@ -22,7 +22,8 @@ const COMPANIES_LIST = [
   "vrtx",
   "Atheer Connectivity",
   "شركة تطبيق بلورة لتقنية المعلومات",
-  "Aya"
+  "Aya",
+  "مسمار"
 ];
 
 const EXPERTISE_FIELDS_LIST = [

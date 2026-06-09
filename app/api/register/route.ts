@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate all companies are ordered (9 companies expected)
+    // Validate all companies are ordered (10 companies expected)
     const expectedCompaniesLower = [
       "qabas",
       "jnh systems",
@@ -96,14 +96,15 @@ export async function POST(req: NextRequest) {
       "vrtx",
       "atheer connectivity",
       "شركة تطبيق بلورة لتقنية المعلومات",
-      "aya"
+      "aya",
+      "مسمار"
     ];
 
-    if (!Array.isArray(companies_ratings) || companies_ratings.length !== 9) {
+    if (!Array.isArray(companies_ratings) || companies_ratings.length !== 10) {
       return NextResponse.json({ error: "Invalid companies order list." }, { status: 400 });
     }
 
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 10; i++) {
       const item = companies_ratings[i];
       const prefix = `${i + 1}-`;
       if (!item || !item.startsWith(prefix)) {
