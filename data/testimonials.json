@@ -6,6 +6,16 @@
       "text": "\"Khotwa changed my life 180 degrees! It gave me an early chance to enter the job market in product management. Through a five-day placement with a startup, I experienced a product manager's real work, and the company later offered me an internship! An incredible opportunity I highly recommend!\""
     },
     {
+      "name": "Khalid Albugami",
+      "role": "",
+      "text": "I participated in a Job Shadowing opportunity with Khotwa in collaboration with Entropy, and it was a unique and enriching experience. Through it, I learned about the nature of the job market, understood how teams work within companies, and how decisions are made and daily challenges are handled. This experience helped me identify the skills I need to develop to be ready for the job market, whether in terms of technical skills or communication and teamwork skills."
+    },
+    {
+      "name": "Moath Almansour",
+      "role": "Intern at Zid",
+      "text": "I applied to Khotwa expecting it to be an initiative like any other, but it was something different and opened many doors and opportunities for me. Now, I am an intern at Zid."
+    },
+    {
       "name": "Abdullah Okasha",
       "role": "Operation Director at eventful",
       "text": "\"Khotwa Initiative was a major turning point for me. I joined a startup called Eventful at The Garage for a one-week trial, but the inspiring team and environment motivated me to stay. I didn't stop there I continued working with them, growing from an intern to now being the Operations Director. Khotwa wasn't just a test run it was the true first step that opened the door to my career and helped me find my passion.\""
@@ -18,9 +28,14 @@
       "text": "\"خطوة غيرت حياتي 180 درجة! منحتني فرصة مبكرة لدخول سوق العمل في إدارة المنتجات. من خلال تجربة لمدة خمسة أيام مع شركة ناشئة، عشت العمل الحقيقي لمدير المنتج، ولاحقاً عرضت عليّ الشركة تدريباً! فرصة رائعة أوصي بها بشدة!\""
     },
     {
-      "name": "خالد البقمي" ,
-      "role": "SS",
+      "name": "خالد البقمي",
+      "role": "",
       "text": "شاركت في فرصة Job Shadowing مع خطوة بالتعاون مع شركة Entropy، وكانت تجربة مميزة ومثرية. تعرفت من خلالها على طبيعة سوق العمل، وفهمت كيف تشتغل الفرق داخل الشركات، وكيف يتم اتخاذ القرارات والتعامل مع التحديات اليومية. ساعدتني هذه التجربة على معرفة المهارات التي أحتاج أطورها حتى أكون مستعد لسوق العمل، سواء من ناحية المهارات التقنية أو مهارات التواصل والعمل ضمن فريق."
+    },
+    {
+      "name": "معاذ المنصور",
+      "role": "متدرب في شركة  زد",
+      "text": "قدمت على خطوة و توقعتها مبادرة زي باقي المبادرات, ولكن كانت شي مختلف و فتحت لي أبواب و فرص كثيرة, و الان انا متدرب في شركة زد"
     },
     {
       "name": "عبدالله عكاشة",
