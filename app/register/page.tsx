@@ -90,7 +90,7 @@ type FormData = z.infer<typeof FullSchema>;
 
 export default function RegisterPage() {
   const { lang, t, toggleLang } = useLanguage();
-  const isRegistrationOpen = false;
+  const isRegistrationOpen = true;
   const getErrorText = (message?: string) => (message ? t(message) : "");
 
   const [currentStep, setCurrentStep] = useState(0);
