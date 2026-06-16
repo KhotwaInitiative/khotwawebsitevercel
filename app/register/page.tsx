@@ -3,7 +3,7 @@
 import { useState, ChangeEvent, DragEvent } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import * as z from "zod"; 
 import Link from "next/link";
 import Image from "next/image";
 import { Lock, CheckCircle, UploadCloud, X, Check, ChevronUp, ChevronDown, ArrowLeft, ArrowRight } from "lucide-react";
